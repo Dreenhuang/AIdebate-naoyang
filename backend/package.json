@@ -1,0 +1,18 @@
+{
+  "name": "taolun-web-backend",
+  "version": "2.0.0",
+  "description": "PRD Debate Dashboard Backend",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.1",
+    "ws": "^8.18.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "js-yaml": "^4.1.0",
+    "archiver": "^6.0.2"
+  }
+}
