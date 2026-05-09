@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Trash2, Sparkles, Edit3, Shuffle } from 'lucide-react';
 import { useDebateStore } from '../stores/debateStore';
-import { getSoulPresets } from '../data/soulPresets';
+import { getSoulsByRoleType } from '../data/soulPresets';
 
 export default function RoleCard({ role, index }) {
   const [expanded, setExpanded] = useState(index === 0);
