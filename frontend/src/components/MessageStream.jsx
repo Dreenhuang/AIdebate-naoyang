@@ -6,13 +6,19 @@ import {
   User, MessageCircle, Quote, Mic
 } from 'lucide-react';
 import { useDebateStore } from '../stores/debateStore';
+import { useModeStore } from '../stores/modeStore';
 import StreamMessage from './StreamMessage'; // 🔥 V2.2 新增
+import { getDisplayComponent } from './DisplayStyles';
 
 export default function MessageStream() {
   const { messages, debateStatus, config, isStreaming } = useDebateStore(); // 🔥 V2.2 新增 isStreaming
+  const { currentMode } = useModeStore();
   const scrollRef = useRef(null);
   const [viewMode, setViewMode] = useState('timeline');
   const [cardStyle, setCardStyle] = useState('glass'); // 'glass' | 'classic' | 'minimal'
+
+  // 根据当前模式获取显示组件
+  const DisplayComponent = currentMode?.displayStyle ? getDisplayComponent(currentMode.displayStyle) : null;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -103,13 +109,42 @@ export default function MessageStream() {
             <EmptyState config={config} />
           ) : (
             <>
+              {/* 🔥 显示模式切换：如果模式配置了专用显示样式，显示样式切换器 */}
+              {DisplayComponent && currentMode?.displayStyle !== 'default' && (
+                <div className="mb-4 flex items-center gap-2">
+                  <span className="text-xs text-text-muted">显示模式:</span>
+                  <div className="flex items-center gap-1 bg-bg-tertiary rounded-lg p-0.5">
+                    <button onClick={() => setViewMode('styled')}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        viewMode === 'styled'
+                          ? 'bg-brand-5 text-white shadow-sm'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}>
+                      {currentMode?.icon} {currentMode?.name}
+                    </button>
+                    <button onClick={() => setViewMode('timeline')}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        viewMode === 'timeline' || viewMode === 'comparison'
+                          ? 'bg-gray-3 text-text-primary'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}>
+                      默认视图
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* 🔥 修复：根据状态显示加载指示器或消息列表 */}
               {showLoading ? (
                 <AILoadingIndicator />
+              ) : viewMode === 'styled' && DisplayComponent ? (
+                <DisplayComponent messages={messages} currentMode={currentMode} />
               ) : viewMode === 'timeline' ? (
                 <TimelineView messages={messages} cardStyle={cardStyle} />
-              ) : (
+              ) : viewMode === 'comparison' ? (
                 <ComparisonView messages={messages} cardStyle={cardStyle} />
+              ) : (
+                <TimelineView messages={messages} cardStyle={cardStyle} />
               )}
             </>
           )}
