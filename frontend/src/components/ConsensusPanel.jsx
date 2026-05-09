@@ -1,12 +1,16 @@
 import { useDebateStore } from '../stores/debateStore';
 import { CheckCircle, AlertTriangle, Shield, XCircle, Info, ChevronDown, ChevronUp, TrendingUp, TrendingDown } from 'lucide-react';
 import { useState } from 'react';
+import EmptyConsensusPlaceholder from './EmptyConsensusPlaceholder';
 
 export default function ConsensusPanel() {
   const { consensus, backtrackResults, debateStatus } = useDebateStore();
   const [expandedCheck, setExpandedCheck] = useState(null);
 
-  if (debateStatus === 'idle' || consensus.length === 0) return null;
+  // 辩论未开始或没有共识时显示占位动画
+  if (debateStatus === 'idle' || consensus.length === 0) {
+    return <EmptyConsensusPlaceholder />;
+  }
 
   const latestConsensus = consensus[consensus.length - 1];
   const latestBacktrack = backtrackResults[backtrackResults.length - 1];

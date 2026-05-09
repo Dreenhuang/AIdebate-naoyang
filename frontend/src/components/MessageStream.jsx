@@ -2,11 +2,10 @@ import { useEffect, useState, useRef } from 'react';
 import {
   MessageSquare, Play, Columns2, List, Loader2, Brain, Sparkles,
   Download, FileText, CheckCircle, AlertCircle,
-  Palette, Layers, GitBranch, ChevronDown, Zap
+  Palette, Layers, GitBranch, ChevronDown, Zap, X, Expand,
+  User, MessageCircle, Quote, Mic
 } from 'lucide-react';
 import { useDebateStore } from '../stores/debateStore';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import StreamMessage from './StreamMessage'; // 🔥 V2.2 新增
 
 export default function MessageStream() {
@@ -21,7 +20,8 @@ export default function MessageStream() {
     }
   }, [messages]);
 
-  const showLoading = debateStatus === 'running' && (
+  // 🔥 修复：确保流式输出时正确显示，同时显示之前已保存的消息
+  const showLoading = !isStreaming && debateStatus === 'running' && (
     messages.length === 0 ||
     (messages.length > 0 && !isRoleMessage(messages[messages.length - 1]))
   );
@@ -40,11 +40,19 @@ export default function MessageStream() {
           {/* 视图模式切换 */}
           <div className="flex items-center gap-1 bg-bg-tertiary rounded-lg p-0.5">
             <button onClick={() => setViewMode('timeline')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === 'timeline' ? 'bg-brand-primary text-white shadow-sm' : 'text-text-muted hover:text-text-primary'}`}>
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                viewMode === 'timeline'
+                  ? 'bg-brand-5 text-white shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}>
               <List size={14} className="inline mr-1"/>时间线
             </button>
             <button onClick={() => setViewMode('comparison')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === 'comparison' ? 'bg-brand-primary text-white shadow-sm' : 'text-text-muted hover:text-text-primary'}`}>
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                viewMode === 'comparison'
+                  ? 'bg-brand-5 text-white shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}>
               <Columns2 size={14} className="inline mr-1"/>对比
             </button>
           </div>
@@ -79,24 +87,33 @@ export default function MessageStream() {
         </div>
       </div>
 
-      {/* 消息列表区域 */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 relative">
-        {messages.length === 0 && debateStatus === 'idle' ? (
-          <EmptyState config={config} />
-        ) : (
-          <>
+      {/* 消息列表区域 - 改为左右布局：左侧30%流式输出，右侧70%卡片列表 */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* 左侧区域：流式输出 (30%) */}
+        <div className="w-[30%] border-r border-border-primary overflow-y-auto bg-bg-primary">
+          <div className="p-4">
             {/* 🔥 V2.2 新增：流式输出显示 */}
             <StreamMessage />
+          </div>
+        </div>
 
-            {showLoading && !isStreaming ? (
-              <AILoadingIndicator />
-            ) : viewMode === 'timeline' ? (
-              <TimelineView messages={messages} cardStyle={cardStyle} />
-            ) : (
-              <ComparisonView messages={messages} cardStyle={cardStyle} />
-            )}
-          </>
-        )}
+        {/* 右侧区域：卡片列表 (70%) */}
+        <div ref={scrollRef} className="w-[70%] overflow-y-auto p-4 relative">
+          {messages.length === 0 && debateStatus === 'idle' ? (
+            <EmptyState config={config} />
+          ) : (
+            <>
+              {/* 🔥 修复：根据状态显示加载指示器或消息列表 */}
+              {showLoading ? (
+                <AILoadingIndicator />
+              ) : viewMode === 'timeline' ? (
+                <TimelineView messages={messages} cardStyle={cardStyle} />
+              ) : (
+                <ComparisonView messages={messages} cardStyle={cardStyle} />
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -159,82 +176,357 @@ function AILoadingIndicator() {
   );
 }
 
-// ===== 时间线视图（含错落布局+脉络线）=====
+// ===== 时间线视图 - 重构版本：中央时间线 + 交替卡片布局 =====
 function TimelineView({ messages, cardStyle }) {
-  const pairedMessages = [];
-  let tempPair = { proposer: null, reviewer: null };
+  const [expandedCard, setExpandedCard] = useState(null);
+  const scrollRef = useRef(null);
 
-  messages.forEach(msg => {
-    const nr = normalizeRole(msg.role);
-    if (nr === 'system') { pairedMessages.push({ type: 'system', message: msg }); return; }
-    if (nr === 'proposer') {
-      if (tempPair.proposer) pairedMessages.push({ type: 'single', ...tempPair });
-      tempPair.proposer = msg;
-    } else if (nr === 'reviewer') {
-      tempPair.reviewer = msg;
-      pairedMessages.push({ type: 'pair', ...tempPair });
-      tempPair = { proposer: null, reviewer: null };
+  // 自动滚动到最新消息
+  useEffect(() => {
+    if (scrollRef.current && messages.length > 0) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  });
-  if (tempPair.proposer || tempPair.reviewer) pairedMessages.push({ type: 'single', ...tempPair });
+  }, [messages]);
 
-  if (pairedMessages.length === 0 && messages.length > 0) {
+  // 按照时间顺序处理消息
+  const timelineMessages = messages.map((msg, index) => ({
+    ...msg,
+    timelineIndex: index,
+  }));
+
+  if (timelineMessages.length === 0) {
     return <div className="space-y-4 max-w-3xl mx-auto">{messages.map((m,i)=><FallbackMessage key={i} message={m} cardStyle={cardStyle}/>)}</div>;
   }
 
   return (
-    <div className="relative max-w-4xl mx-auto py-2">
-      {/* 中央脉络线 */}
-      <div className="absolute left-[26px] top-4 bottom-4 w-[3px] bg-gradient-to-b from-brand-primary via-purple-500 to-transparent rounded-full opacity-60"/>
+    <div ref={scrollRef} className="relative w-full py-6 px-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+      {/* 中央时间线轨道 - 桌面端居中，移动端靠左 */}
+      <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-[2px] bg-gradient-to-b from-brand-primary via-purple-500 to-gray-300 md:-translate-x-1/2 opacity-40"/>
 
-      {pairedMessages.map((item, index) => {
-        if (item.type === 'system') {
-          return (
-            <div key={index} className="flex justify-center my-8 relative z-10">
-              <span className="text-xs text-text-muted bg-gradient-to-r from-bg-tertiary to-bg-secondary px-5 py-2 rounded-full border border-border-primary/50 shadow-sm relative z-10 font-medium">
-                {item.message.content}
-              </span>
-              {/* 系统消息节点圆点 */}
-              <div className="absolute left-[26px] top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-gray-400 ring-4 ring-bg-primary z-20"/>
-            </div>
-          );
-        }
+      {/* 时间线节点列表 */}
+      <div className="space-y-6 relative z-10 max-w-4xl mx-auto">
+        {timelineMessages.map((item, index) => {
+          const nr = normalizeRole(item.role);
 
-        // 错落效果：奇数索引左偏，偶数索引右偏
-        const staggerOffset = index % 2 === 0 ? '' : 'md:translate-x-8';
-
-        if (item.type === 'pair') {
-          return (
-            <div key={index} className={`relative mb-12 ${staggerOffset}`}>
-              {/* 节点圆点 */}
-              <TimelineNode index={index} isPair={true}/>
-              {/* 轮次标签 */}
-              {(item.proposer?.round !== undefined) && (
-                <div className="absolute left-14 top-0 text-xs font-bold text-brand-primary/70 bg-brand-primary/10 px-2 py-1 rounded-full">
-                  第{item.proposer.round + 1}轮
+          // 系统消息居中显示
+          if (nr === 'system') {
+            return (
+              <div key={index} className="flex justify-center">
+                <div className="relative">
+                  <span className="text-xs text-text-muted bg-gradient-to-r from-bg-tertiary to-bg-secondary px-5 py-2 rounded-full border border-border-primary/50 shadow-sm font-medium">
+                    {item.content}
+                  </span>
+                  {/* 节点圆点 */}
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-gray-400 ring-2 ring-bg-primary"/>
                 </div>
-              )}
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-4 pl-14 pt-8">
-                <StaggeredCard role="proposer" message={item.proposer} side="left" style={cardStyle} index={index}/>
-                <ConnectionLine/>
-                <StaggeredCard role="reviewer" message={item.reviewer} side="right" style={cardStyle} index={index}/>
               </div>
-            </div>
-          );
-        }
+            );
+          }
 
-        return (
-          <div key={index} className={`relative mb-8 ${staggerOffset}`}>
-            <TimelineNode index={index} isPair={false}/>
-            <div className={`pl-14 pt-6 ${index % 2 === 0 ? '' : 'md:pl-16'}`}>
-              <StaggeredCard role={normalizeRole(item.proposer||item.reviewer?.role)} message={item.proposer||item.reviewer}
-                side={!!item.proposer?'left':'right'} style={cardStyle} index={index}/>
-            </div>
-          </div>
-        );
-      })}
+          // 根据角色决定卡片位置
+          const isModerator = nr === 'host';
+          const isProposer = nr === 'proposer';
+          const isReviewer = nr === 'reviewer';
+
+          // 桌面端：主持人居中，提案者左侧，审查者右侧
+          // 移动端：全部左对齐
+          const isLeft = isProposer;
+          const isRight = isReviewer;
+          const isCenter = isModerator;
+
+          return (
+            <TimelineNodeCard
+              key={index}
+              message={item}
+              role={nr}
+              index={index}
+              isLeft={isLeft}
+              isRight={isRight}
+              isCenter={isCenter}
+              isExpanded={expandedCard === index}
+              onToggle={() => setExpandedCard(expandedCard === index ? null : index)}
+            />
+          );
+        })}
+      </div>
+
+      {/* 展开详情弹窗 */}
+      {expandedCard !== null && timelineMessages[expandedCard] && (
+        <DebateCardModal
+          message={timelineMessages[expandedCard]}
+          role={normalizeRole(timelineMessages[expandedCard].role)}
+          onClose={() => setExpandedCard(null)}
+        />
+      )}
     </div>
   );
+}
+
+// ===== 时间线节点卡片 =====
+function TimelineNodeCard({ message, role, index, isLeft, isRight, isCenter, isExpanded, onToggle }) {
+  const cfg = getRoleConfig(role);
+  const content = message.content || '';
+  const parsed = parseDebateContent(content);
+
+  // 根据角色选择颜色
+  const colors = {
+    proposer: {
+      bg: 'bg-emerald-50',
+      border: 'border-emerald-500',
+      accent: 'bg-emerald-500',
+      text: 'text-emerald-600',
+      icon: 'bg-emerald-100',
+    },
+    reviewer: {
+      bg: 'bg-orange-50',
+      border: 'border-orange-500',
+      accent: 'bg-orange-500',
+      text: 'text-orange-600',
+      icon: 'bg-orange-100',
+    },
+    host: {
+      bg: 'bg-blue-50',
+      border: 'border-blue-500',
+      accent: 'bg-blue-500',
+      text: 'text-blue-600',
+      icon: 'bg-blue-100',
+    },
+  };
+  const color = colors[role] || colors.host;
+
+  return (
+    <div className={`relative flex items-start ${
+      isCenter ? 'justify-center' : isLeft ? 'justify-start' : 'justify-end'
+    }`}>
+      {/* 桌面端：根据角色调整左边距实现交替效果 */}
+      <div className={`hidden md:block w-[calc(50%-40px)] ${isRight ? 'md:order-3' : ''} ${isLeft ? 'md:order-1' : ''} ${isCenter ? 'md:w-[calc(33%-32px)]' : ''}`} />
+
+      {/* 节点圆点 - 始终居中（相对于时间线） */}
+      <div className={`flex-shrink-0 w-4 h-4 rounded-full border-2 border-bg-primary shadow-md z-20 ${
+        role === 'proposer' ? 'bg-emerald-500' :
+        role === 'reviewer' ? 'bg-orange-500' :
+        'bg-blue-500'
+      }`}>
+        {index % 3 === 0 && (
+          <Zap size={8} className="text-white absolute inset-0 m-auto" strokeWidth={2}/>
+        )}
+      </div>
+
+      {/* 卡片主体 - 移动端始终全宽，桌面端根据位置 */}
+      <div className={`w-full md:w-[calc(50%-40px)] ${
+        isCenter ? 'md:w-[calc(33%-32px)] order-2' : isRight ? 'md:order-1' : 'order-2'
+      }`}>
+        <div className={`rounded-xl border-t-4 ${color.border} shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden max-h-[280px] relative ${
+          isCenter ? 'border-l-4 bg-blue-50' : isLeft ? 'border-l-4 bg-emerald-50' : 'border-r-4 bg-orange-50'
+        }`}
+           style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+           onClick={onToggle}>
+          {/* 内容区域（带渐变遮罩） */}
+          <div className="p-4">
+            {/* 卡片顶部 - 角色信息 */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color.icon} ${color.text}`}>
+                  {role === 'proposer' ? <User size={16}/> :
+                   role === 'reviewer' ? <MessageCircle size={16}/> :
+                   <Mic size={16}/>}
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-text-primary">{cfg.label}</p>
+                  <p className="text-xs text-text-muted">{cfg.subtitle}</p>
+                </div>
+              </div>
+              {message.timestamp && (
+                <span className="text-xs text-text-muted bg-white/60 px-2 py-0.5 rounded-full">
+                  {formatTime(message.timestamp)}
+                </span>
+              )}
+            </div>
+
+            {/* 核心观点（带左边框的突出显示） */}
+            {parsed.corePoint && (
+              <div className={`p-3 rounded-lg mb-3 border-l-4 ${color.accent} bg-white/80`}>
+                <p className="font-semibold text-sm text-text-primary leading-relaxed">
+                  {parsed.corePoint}
+                </p>
+              </div>
+            )}
+
+            {/* 主要内容要点（带序号） */}
+            {parsed.points.length > 0 && (
+              <div className="space-y-2">
+                {parsed.points.slice(0, 3).map((point, i) => (
+                  <div key={i} className="flex items-start gap-2 text-sm">
+                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${color.icon} ${color.text}`}>
+                      {i + 1}
+                    </span>
+                    <span className="text-text-secondary leading-relaxed">{point}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 渐变遮罩 - 使用半透明遮罩而非透明 */}
+          <div className="absolute bottom-0 left-0 w-full h-10 bg-gradient-to-t from-black/10 to-transparent pointer-events-none"/>
+
+          {/* 卡片底部 - 查看详情按钮 */}
+          <div className="absolute bottom-2 left-0 w-full flex justify-center z-10">
+            <button className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-white/90 ${color.text} hover:opacity-80 transition-opacity shadow-sm`}>
+              <Expand size={12}/>
+              点击查看
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== 辩论卡片弹窗（查看完整内容）=====
+function DebateCardModal({ message, role, onClose }) {
+  const cfg = getRoleConfig(role);
+  const content = message.content || '';
+  const parsed = parseDebateContent(content);
+
+  // 根据角色选择颜色
+  const colors = {
+    proposer: { bg: 'bg-emerald-50', border: 'border-emerald-500', accent: 'bg-emerald-500', text: 'text-emerald-600', icon: 'bg-emerald-100' },
+    reviewer: { bg: 'bg-orange-50', border: 'border-orange-500', accent: 'bg-orange-500', text: 'text-orange-600', icon: 'bg-orange-100' },
+    host: { bg: 'bg-blue-50', border: 'border-blue-500', accent: 'bg-blue-500', text: 'text-blue-600', icon: 'bg-blue-100' },
+  };
+  const color = colors[role] || colors.host;
+
+  // 处理内容中的换行和格式
+  const fullContent = content.split('\n').map((line, i) => {
+    if (!line.trim()) return <br key={i}/>;
+    if (line.startsWith('#')) {
+      return <h4 key={i} className="font-bold text-text-primary mt-4 mb-2">{line.replace(/^#+\s*/, '')}</h4>;
+    }
+    if (line.match(/^[-*]\s/) || line.match(/^\d+\.\s/)) {
+      return <li key={i} className="ml-4 text-text-secondary">{line.replace(/^[-*]\s|^\d+\.\s/, '')}</li>;
+    }
+    return <p key={i} className="text-text-secondary leading-relaxed mb-2">{line}</p>;
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      {/* 遮罩层 */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"/>
+
+      {/* 弹窗主体 */}
+      <div className="relative bg-surface-container-lowest rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-300 border-t-4 ${color.border}"
+           onClick={(e) => e.stopPropagation()}
+           style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+        {/* 弹窗头部 */}
+        <div className={`px-5 py-4 border-b border-border-primary flex items-center justify-between ${color.bg}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color.icon} ${color.text}`}>
+              {role === 'proposer' ? <User size={18}/> :
+               role === 'reviewer' ? <MessageCircle size={18}/> :
+               <Mic size={18}/>}
+            </div>
+            <div>
+              <p className="font-bold text-text-primary">{cfg.label}</p>
+              <p className="text-sm text-text-muted">{cfg.subtitle}</p>
+            </div>
+          </div>
+          <button onClick={onClose}
+            className="w-8 h-8 rounded-full bg-surface-container-low hover:bg-surface-container-high flex items-center justify-center transition-colors">
+            <X size={16} className="text-text-muted"/>
+          </button>
+        </div>
+
+        {/* 弹窗内容区 */}
+        <div className="p-5 overflow-y-auto max-h-[60vh]">
+          {/* 核心观点 */}
+          {parsed.corePoint && (
+            <div className={`p-4 rounded-xl mb-4 border-l-4 ${color.accent} ${color.bg}`}>
+              <p className="font-bold text-text-primary leading-relaxed">
+                {parsed.corePoint}
+              </p>
+            </div>
+          )}
+
+          {/* 完整内容 */}
+          <div className="space-y-2">
+            {fullContent}
+          </div>
+        </div>
+
+        {/* 弹窗底部 */}
+        <div className="px-5 py-3 border-t border-border-primary bg-surface-container-low flex justify-end">
+          <button onClick={onClose}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${color.accent} text-white hover:opacity-90`}>
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== 内容解析工具函数 =====
+function parseDebateContent(content) {
+  if (!content || typeof content !== 'string') {
+    return { corePoint: '', points: [], raw: '' };
+  }
+
+  let corePoint = '';
+  let points = [];
+  const lines = content.split('\n');
+  let foundCorePoint = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // 跳过空行
+    if (!line) continue;
+
+    // 核心观点通常在开头，带有关键词
+    if (!foundCorePoint && (line.includes('核心') || line.includes('主要') || line.includes('观点') || line.includes('论点'))) {
+      // 提取核心观点内容
+      const afterColon = line.split(/[：:]/).slice(1).join(':').trim();
+      if (afterColon) {
+        corePoint = afterColon;
+        foundCorePoint = true;
+        continue;
+      }
+    }
+
+    // 收集要点（数字列表或项目符号）
+    const numberedMatch = line.match(/^(\d+)[.、\s]+(.+)/);
+    if (numberedMatch) {
+      points.push(numberedMatch[2]);
+      continue;
+    }
+
+    const bulletMatch = line.match(/^[-*•]\s+(.+)/);
+    if (bulletMatch) {
+      points.push(bulletMatch[1]);
+      continue;
+    }
+
+    // 如果还没找到核心观点，且内容比较短（40字以内），可能是核心观点
+    if (!foundCorePoint && line.length > 10 && line.length < 60 && !line.includes('。')) {
+      corePoint = line;
+      foundCorePoint = true;
+    } else if (!foundCorePoint && line.length < 100) {
+      // 取第一句话作为核心观点
+      corePoint = line.replace(/^[#*>]+/, '').trim();
+      foundCorePoint = true;
+    }
+  }
+
+  // 如果没有找到核心观点，取第一段
+  if (!corePoint && lines.length > 0) {
+    const firstNonEmpty = lines.find(l => l.trim().length > 10);
+    if (firstNonEmpty) {
+      corePoint = firstNonEmpty.trim().replace(/^[#*>]+/, '').slice(0, 80);
+    }
+  }
+
+  return { corePoint, points, raw: content };
 }
 
 // ===== 时间线节点圆点 =====
@@ -377,9 +669,9 @@ function MinimalCard({ role, message, side, cfg, index }) {
 // ===== 角色配置获取 =====
 function getRoleConfig(role) {
   const configs = {
-    proposer: { label:'💡 提案者', color:'emerald', icon:<LightbulbIcon/>, key:'proposer' },
-    reviewer:{ label:'🔍 审查者', color:'orange', icon:<SearchIcon/>, key:'reviewer' },
-    host:     { label:'🎙️ 主持人', color:'blue', icon:<MicIcon/>, key:'host' },
+    proposer: { label:'提案者', subtitle:'支持方观点', color:'emerald', icon:<LightbulbIcon/>, key:'proposer' },
+    reviewer:{ label:'审查者', subtitle:'质疑方观点', color:'orange', icon:<SearchIcon/>, key:'reviewer' },
+    host:     { label:'主持人', subtitle:'中立引导', color:'blue', icon:<MicIcon/>, key:'host' },
   };
   return configs[role] || configs.host;
 }
@@ -389,17 +681,55 @@ function SearchIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" f
 function MicIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3zM19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="21"/></svg>; }
 function ArrowLeftRight() { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 16V4m0 0L3 8l4 4m10 0v12m0 0l4-4-4-4"/></svg>; }
 
-// ===== 内容渲染器 =====
+// ===== 内容渲染器 - 修复：直接显示纯文本，避免 ReactMarkdown 崩溃 =====
 function RenderContent({ content }) {
-  if (!content) return <p className="text-text-muted italic">（无内容）</p>;
-  return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>;
+  // 🔥 防御性检查：确保 content 是有效的字符串
+  if (!content || typeof content !== 'string') {
+    return <p className="text-text-muted italic">（无内容）</p>;
+  }
+
+  try {
+    // 🔥 简化版：直接显示纯文本，避免 ReactMarkdown 解析错误
+    // 将 Markdown 链接转换为可读文本
+    const text = content
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)')  // 链接
+      .replace(/[*_]{1,2}([^*_]+)[*_]{1,2}/g, '$1')    // 粗体斜体
+      .replace(/`([^`]+)`/g, '$1')                      // 行内代码
+      .replace(/\$\$([^$]+)\$\$/g, '[$1]')              // LaTeX 公式 $$...$$
+      .replace(/\$([^$\n]+)\$/g, '[$1]')                // LaTeX 公式 $...$
+      .replace(/^#{1,6}\s+/gm, '')                       // 标题标记
+      .replace(/^[-*+]\s+/gm, '• ')                     // 列表标记
+      .replace(/^\d+\.\s+/gm, '')                       // 数字列表
+      .replace(/>\s+/g, '')                             // 引用
+      .replace(/\n{3,}/g, '\n\n');                      // 压缩多余空行
+
+    return <div className="whitespace-pre-wrap leading-relaxed">{text}</div>;
+  } catch (error) {
+    // 🔥 如果处理失败，直接显示原始内容
+    console.error('[RenderContent] Error processing content:', error);
+    return <div className="whitespace-pre-wrap leading-relaxed">{String(content)}</div>;
+  }
 }
 
 // ===== 角色名称标准化 =====
 function normalizeRole(role) {
-  if(!role)return'unknown';
-  const map={'proposer':'proposer','reviewer':'reviewer','host':'host','moderator':'host','system':'system','提案者':'proposer','审查者':'reviewer','主持人':'host','系统':'system'};
-  return map[role.toLowerCase()]||role.toLowerCase();
+  // 🔥 防御性检查：确保 role 是有效的字符串
+  if (!role || typeof role !== 'string') {
+    return 'unknown';
+  }
+  const map = {
+    'proposer': 'proposer',
+    'reviewer': 'reviewer',
+    'host': 'host',
+    'moderator': 'host',
+    'system': 'system',
+    '提案者': 'proposer',
+    '审查者': 'reviewer',
+    '主持人': 'host',
+    '系统': 'system'
+  };
+  const lowerRole = role.toLowerCase().trim();
+  return map[lowerRole] || lowerRole;
 }
 
 function isRoleMessage(msg){return['proposer','reviewer','host'].includes(normalizeRole(msg.role));}
@@ -412,32 +742,147 @@ function FallbackMessage({ message, cardStyle }) {
   return <StaggeredCard role={nr} message={message} side='left' style={cardStyle||'glass'} index={0}/>;
 }
 
-// ===== 对比视图（简化版）=====
+// ===== 对比视图（优化版）=====
 function ComparisonView({ messages, cardStyle }) {
-  const rounds=groupByRound(messages);
-  if(rounds.length===0)return<div className="text-center text-text-muted py-10">暂无对比内容</div>;
+  const rounds = groupByRound(messages);
+  if (rounds.length === 0) {
+    return <div className="text-center text-text-muted py-10">暂无对比内容</div>;
+  }
 
-  return(
+  return (
     <div className="max-w-5xl mx-auto space-y-6">
-      {rounds.map((round,i)=>(
-        <div key={i} className="bg-bg-secondary/50 rounded-xl border border-border-primary overflow-hidden">
-          <button className="w-full px-5 py-3 flex items-center justify-between hover:bg-bg-hover/50">
-            <div className="flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold text-sm flex items-center justify-center">{round.round+1}</span>
-              <div className="text-left"><p className="font-semibold text-text-primary text-sm">第{round.round+1}轮辩论</p>{round.phase!==undefined&&<span className="text-xs text-text-muted">{getPhaseName(round.phase)}</span>}</div>
+      {rounds.map((round, i) => (
+        <div key={i} className="bg-surface-container-lowest rounded-2xl border border-border-primary overflow-hidden shadow-sm">
+          {/* 轮次头部 */}
+          <div className="px-5 py-4 bg-gradient-to-r from-bg-component to-transparent border-b border-border-primary">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="w-10 h-10 rounded-xl bg-brand-primary/10 text-brand-primary font-bold text-lg flex items-center justify-center shadow-sm">
+                  {round.round + 1}
+                </span>
+                <div className="text-left">
+                  <p className="font-semibold text-text-primary text-base">第 {round.round + 1} 轮辩论</p>
+                  {round.phase !== undefined && (
+                    <span className="text-xs text-text-muted bg-bg-component px-2 py-0.5 rounded-full mt-0.5 inline-block">
+                      {getPhaseName(round.phase)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 bg-emerald-100 text-emerald-600 text-xs font-medium rounded-full">
+                  💡 提案者
+                </span>
+                <span className="px-3 py-1 bg-orange-100 text-orange-600 text-xs font-medium rounded-full">
+                  🔍 审查者
+                </span>
+              </div>
             </div>
-            <ChevronDown size={18} className="text-text-muted"/>
-          </button>
-          <div className="px-5 pb-5">
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-4 mt-2">
-              {round.proposer?<StaggeredCard role="proposer" message={round.proposer} side="left" style={cardStyle} index={i}/>:<div className="bg-proposer/5 rounded-xl p-4 text-center text-text-muted text-sm italic">暂无提案</div>}
-              <div className="hidden lg:flex flex-col items-center justify-center"><ArrowLeftRight size={20} className="text-brand-primary/50"/></div>
-              {round.reviewer?<StaggeredCard role="reviewer" message={round.reviewer} side="right" style={cardStyle} index={i}/>:<div className="bg-reviewer/5 rounded-xl p-4 text-center text-text-muted text-sm italic">暂无审查</div>}
+          </div>
+
+          {/* 对比内容区 */}
+          <div className="p-5">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_48px_1fr] gap-4">
+              {/* 提案者卡片 */}
+              {round.proposer ? (
+                <ComparisonCard role="proposer" message={round.proposer} index={i} />
+              ) : (
+                <div className="bg-emerald-50/50 rounded-xl p-6 text-center border border-emerald-100">
+                  <p className="text-emerald-400 text-sm italic">等待提案者发言...</p>
+                </div>
+              )}
+
+              {/* VS 分隔线 */}
+              <div className="hidden lg:flex flex-col items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-orange-400 flex items-center justify-center shadow-lg">
+                  <span className="text-white font-bold text-sm">VS</span>
+                </div>
+                <div className="w-0.5 h-full bg-gradient-to-b from-emerald-300 via-gray-300 to-orange-300 my-2" />
+              </div>
+
+              {/* 审查者卡片 */}
+              {round.reviewer ? (
+                <ComparisonCard role="reviewer" message={round.reviewer} index={i} />
+              ) : (
+                <div className="bg-orange-50/50 rounded-xl p-6 text-center border border-orange-100">
+                  <p className="text-orange-400 text-sm italic">等待审查者发言...</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       ))}
-      <ConsensusSummary messages={messages}/>
+      <ConsensusSummary messages={messages} />
+    </div>
+  );
+}
+
+// ===== 对比视图卡片组件 =====
+function ComparisonCard({ role, message, index }) {
+  const parsed = parseDebateContent(message.content || '');
+
+  const colors = {
+    proposer: {
+      bg: 'bg-emerald-50',
+      border: 'border-emerald-400',
+      accent: 'bg-emerald-500',
+      text: 'text-emerald-600',
+      icon: 'bg-emerald-100',
+      label: '提案者',
+    },
+    reviewer: {
+      bg: 'bg-orange-50',
+      border: 'border-orange-400',
+      accent: 'bg-orange-500',
+      text: 'text-orange-600',
+      icon: 'bg-orange-100',
+      label: '审查者',
+    },
+  };
+  const color = colors[role];
+
+  return (
+    <div className={`rounded-xl border-t-4 ${color.border} bg-surface-container-lowest shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden`}>
+      {/* 卡片头部 */}
+      <div className={`px-4 py-3 border-b border-border-primary ${color.bg}`}>
+        <div className="flex items-center gap-2">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${color.icon} ${color.text}`}>
+            {role === 'proposer' ? <User size={14} /> : <MessageCircle size={14} />}
+          </div>
+          <span className="font-semibold text-sm text-text-primary">{color.label}</span>
+          {message.timestamp && (
+            <span className="ml-auto text-xs text-text-muted">
+              {formatTime(message.timestamp)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* 卡片内容 */}
+      <div className="p-4">
+        {/* 核心观点 */}
+        {parsed.corePoint && (
+          <div className={`p-3 rounded-lg mb-3 border-l-4 ${color.accent} ${color.bg}`}>
+            <p className="font-semibold text-sm text-text-primary leading-relaxed">
+              {parsed.corePoint}
+            </p>
+          </div>
+        )}
+
+        {/* 要点列表 */}
+        {parsed.points.length > 0 && (
+          <div className="space-y-2">
+            {parsed.points.slice(0, 3).map((point, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm">
+                <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${color.icon} ${color.text}`}>
+                  {i + 1}
+                </span>
+                <span className="text-text-secondary leading-relaxed">{point}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,48 @@
+:root {
+  --xhs-pink-main: #FF6B9D;
+  --xhs-pink-light: #FF8E9B;
+  --xhs-pink-dark: #E85D8F;
+
+  --xhs-coral: #FF7F50;
+  --xhs-peach: #FFB6C1;
+  --xhs-rose: #FFE4E1;
+
+  --xhs-gray-50: #FFF5F7;
+  --xhs-gray-100: #FFE4E6;
+  --xhs-gray-200: #FECDD3;
+  --xhs-gray-300: #FDA4AF;
+  --xhs-gray-400: #FB7185;
+  --xhs-gray-500: #F43F5E;
+  --xhs-gray-600: #E11D48;
+  --xhs-gray-700: #BE123C;
+  --xhs-gray-800: #9F1239;
+  --xhs-gray-900: #881337;
+
+  --xhs-font-sans: 'Noto Sans SC', 'PingFang SC', sans-serif;
+  --xhs-font-size-xs: 0.75rem;
+  --xhs-font-size-sm: 0.875rem;
+  --xhs-font-size-base: 1rem;
+  --xhs-font-size-lg: 1.125rem;
+  --xhs-font-size-xl: 1.25rem;
+  --xhs-line-height-normal: 1.6;
+
+  --xhs-space-xs: 0.25rem;
+  --xhs-space-sm: 0.5rem;
+  --xhs-space-md: 1rem;
+  --xhs-space-lg: 1.5rem;
+  --xhs-space-xl: 2rem;
+
+  --xhs-radius-sm: 8px;
+  --xhs-radius-md: 12px;
+  --xhs-radius-lg: 16px;
+  --xhs-radius-xl: 24px;
+
+  --xhs-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --xhs-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.06);
+  --xhs-shadow-lg: 0 10px 15px rgba(255, 107, 157, 0.1);
+  --xhs-shadow-pink-glow: 0 0 40px rgba(255, 107, 157, 0.2);
+
+  --xhs-transition-fast: 150ms ease-out;
+  --xhs-transition-normal: 250ms ease-out;
+  --xhs-transition-slow: 350ms ease-out;
+}

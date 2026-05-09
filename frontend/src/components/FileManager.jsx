@@ -25,15 +25,33 @@ export default function FileManager() {
     }
   };
 
+  const downloadFile = (content, filename, type = 'text/plain') => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const downloadSelected = () => {
     const selected = files.filter(f => selectedFiles.has(f.name));
-    console.log('Download selected:', selected);
-    // TODO: Implement actual download
+    selected.forEach((file, index) => {
+      setTimeout(() => downloadFile(file.content || '', file.name), index * 100);
+    });
   };
 
   const downloadAll = () => {
-    console.log('Download all:', files);
-    // TODO: Implement actual download
+    files.forEach((file, index) => {
+      setTimeout(() => downloadFile(file.content || '', file.name), index * 100);
+    });
+  };
+
+  const handleFileDownload = (file) => {
+    downloadFile(file.content || '', file.name);
   };
 
   const formatSize = (bytes) => {
@@ -45,7 +63,7 @@ export default function FileManager() {
   };
 
   return (
-    <div className="h-[140px] bg-bg-secondary border-t border-border-primary flex flex-col">
+    <div className="h-[140px] bg-bg-secondary border-t border-border-primary flex flex-col overflow-hidden">
       {/* 头部 */}
       <div className="px-4 py-1.5 border-b border-border-primary flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -120,6 +138,7 @@ export default function FileManager() {
                     <Eye className="w-4 h-4 text-text-secondary" />
                   </button>
                   <button
+                    onClick={() => handleFileDownload(file)}
                     className="p-1.5 hover:bg-bg-tertiary rounded transition-colors"
                     title="下载"
                   >
@@ -142,7 +161,10 @@ export default function FileManager() {
                 <span className="font-medium">{previewFile.name}</span>
               </div>
               <div className="flex items-center gap-2">
-                <button className="flex items-center gap-1 text-xs bg-brand-primary hover:bg-brand-primary/90 text-white px-3 py-1.5 rounded transition-colors">
+                <button
+                  onClick={() => handleFileDownload(previewFile)}
+                  className="flex items-center gap-1 text-xs bg-brand-primary hover:bg-brand-primary/90 text-white px-3 py-1.5 rounded transition-colors"
+                >
                   <Download className="w-3 h-3" />
                   下载
                 </button>

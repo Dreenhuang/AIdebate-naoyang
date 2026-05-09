@@ -1,15 +1,16 @@
 import { useEffect, useRef } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { Loader2, Sparkles, X } from 'lucide-react';
 import { useDebateStore } from '../stores/debateStore';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 /**
- * 🔥 V2.2 新增：流式输出显示组件
- * 实现逐字/逐块实时显示 AI 回复
+ * 🔥 V2.2 修复版：流式输出显示组件
+ * 1. 添加错误边界防止 Markdown 解析错误导致白屏
+ * 2. 优化渲染逻辑，确保消息正确显示
  */
 export default function StreamMessage() {
-  const { isStreaming, streamContent, canCancel, cancelRequest } = useDebateStore();
+  const { isStreaming, streamContent, canCancel, cancelStream } = useDebateStore();
+  const { cancelRequest } = useWebSocket();
   const contentRef = useRef(null);
   const cursorRef = useRef(null);
 
@@ -34,6 +35,41 @@ export default function StreamMessage() {
 
   if (!isStreaming || !streamContent) return null;
 
+  // 🔥 简化版：直接显示为纯文本（最安全的方式）
+  // 避免 ReactMarkdown 解析错误导致崩溃
+  const renderContent = (content) => {
+    if (!content) return null;
+
+    // 如果内容太长（AI 回复通常较长），直接显示为纯文本
+    if (content.length > 500) {
+      // 将 Markdown 链接转换为可读文本
+      const text = content
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)')  // 链接
+        .replace(/[*_]{1,2}([^*_]+)[*_]{1,2}/g, '$1')    // 粗体斜体
+        .replace(/`([^`]+)`/g, '$1')                      // 行内代码
+        .replace(/\$\$([^$]+)\$\$/g, '[$1]')              // LaTeX 公式 $$...$$
+        .replace(/\$([^$\n]+)\$/g, '[$1]')                // LaTeX 公式 $...$
+        .replace(/^#{1,6}\s+/gm, '')                       // 标题标记
+        .replace(/^[-*+]\s+/gm, '• ')                     // 列表标记
+        .replace(/^\d+\.\s+/gm, '')                       // 数字列表
+        .replace(/>\s+/g, '')                             // 引用
+        .replace(/\n{3,}/g, '\n\n');                      // 压缩多余空行
+
+      return (
+        <div className="whitespace-pre-wrap leading-relaxed">
+          {text}
+        </div>
+      );
+    }
+
+    // 短内容也不使用 ReactMarkdown，直接显示
+    return (
+      <div className="whitespace-pre-wrap leading-relaxed">
+        {content}
+      </div>
+    );
+  };
+
   return (
     <div className="mx-4 my-4 p-5 rounded-2xl bg-gradient-to-br from-brand-primary/10 via-purple-500/5 to-transparent border-l-4 border-brand-primary shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-300">
       {/* 头部 */}
@@ -49,28 +85,29 @@ export default function StreamMessage() {
           </span>
         </div>
 
-        {/* 取消按钮 */}
+        {/* 取消按钮 - 修复：通过 WebSocket 发送取消请求 */}
         {canCancel && (
           <button
-            onClick={cancelRequest}
+            onClick={() => {
+              console.log('[StreamMessage] 发送取消请求...');
+              cancelRequest(); // 通过 WebSocket 发送取消
+            }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-all hover:scale-105 active:scale-95"
             title="取消当前生成"
           >
-            <Loader2 className="w-3 h-3 animate-spin" />
-            取消
+            <X size={12} />
+            取消生成
           </button>
         )}
       </div>
 
-      {/* 流式内容区域 */}
+      {/* 流式内容区域 - 直接显示纯文本 */}
       <div
         ref={contentRef}
         className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed max-h-[400px] overflow-y-auto pr-2"
         style={{ minHeight: '60px' }}
       >
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {streamContent}
-        </ReactMarkdown>
+        {renderContent(streamContent)}
 
         {/* 打字光标效果 */}
         <span

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DebateFlow - 通用人工智能 (AGI) 的伦理</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-bright": "#f9f9fc",
+                        "surface-variant": "#e2e2e5",
+                        "on-secondary-fixed-variant": "#7b2e17",
+                        "on-background": "#1a1c1e",
+                        "surface-container-low": "#f3f3f6",
+                        "secondary-fixed": "#ffdbd1",
+                        "on-secondary-fixed": "#3b0900",
+                        "inverse-surface": "#2f3133",
+                        "primary-fixed": "#abeef6",
+                        "inverse-on-surface": "#f0f0f3",
+                        "on-secondary": "#ffffff",
+                        "on-primary-container": "#90d2da",
+                        "outline-variant": "#bfc8c9",
+                        "on-error": "#ffffff",
+                        "primary-container": "#0d5c63",
+                        "on-tertiary-fixed": "#000965",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#f9f9fc",
+                        "secondary-fixed-dim": "#ffb5a0",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#004f55",
+                        "primary-fixed-dim": "#8fd1d9",
+                        "inverse-primary": "#8fd1d9",
+                        "on-tertiary-container": "#bec3ff",
+                        "on-surface": "#1a1c1e",
+                        "on-primary-fixed": "#002023",
+                        "secondary": "#9a452c",
+                        "on-tertiary-fixed-variant": "#2e3aa2",
+                        "tertiary": "#222e97",
+                        "surface-container-highest": "#e2e2e5",
+                        "surface-container": "#eeeef0",
+                        "outline": "#6f797a",
+                        "surface-dim": "#dadadc",
+                        "on-error-container": "#93000a",
+                        "error-container": "#ffdad6",
+                        "background": "#f9f9fc",
+                        "on-secondary-container": "#772b14",
+                        "secondary-container": "#ff9476",
+                        "tertiary-container": "#3c48af",
+                        "surface-container-high": "#e8e8ea",
+                        "tertiary-fixed": "#dfe0ff",
+                        "tertiary-fixed-dim": "#bdc2ff",
+                        "error": "#ba1a1a",
+                        "primary": "#004349",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#20686f",
+                        "on-surface-variant": "#3f484a"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "md": "16px",
+                        "sm": "8px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "xxl": "48px",
+                        "unit": "4px",
+                        "timeline-track": "64px",
+                        "xs": "4px"
+                    },
+                    fontFamily: {
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "body-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "headline-sm": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "label-lg": ["Inter"],
+                        "headline-md": ["Hanken Grotesk"]
+                    },
+                    fontSize: {
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "display-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .timeline-card-shadow {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        }
+        .timeline-card-hover:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+        .max-h-card {
+            max-height: 280px;
+            overflow: hidden;
+            position: relative;
+        }
+        .max-h-card::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1));
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex flex-col antialiased">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-on-background docked full-width top-0 border-b border-surface-container-highest dark:border-outline-variant flat no shadows sticky z-50">
+<div class="flex justify-between items-center w-full px-lg md:px-xl max-w-[1200px] mx-auto h-16">
+<div class="font-headline-md text-headline-md font-extrabold text-primary dark:text-primary-fixed-dim">
+                DebateFlow
+            </div>
+<nav class="hidden md:flex gap-lg h-full items-center">
+<a class="text-on-surface-variant dark:text-outline-variant font-medium hover:text-primary dark:hover:text-primary-fixed-dim transition-colors duration-200 cursor-pointer active:opacity-70 h-full flex items-center" href="#">浏览</a>
+<a class="text-primary dark:text-primary-fixed-dim border-b-2 border-primary dark:border-primary-fixed-dim pb-1 font-medium hover:text-primary dark:hover:text-primary-fixed-dim transition-colors duration-200 cursor-pointer active:opacity-70 h-full flex items-center mt-1" href="#">话题</a>
+<a class="text-on-surface-variant dark:text-outline-variant font-medium hover:text-primary dark:hover:text-primary-fixed-dim transition-colors duration-200 cursor-pointer active:opacity-70 h-full flex items-center" href="#">直播</a>
+<a class="text-on-surface-variant dark:text-outline-variant font-medium hover:text-primary dark:hover:text-primary-fixed-dim transition-colors duration-200 cursor-pointer active:opacity-70 h-full flex items-center" href="#">存档</a>
+</nav>
+<div class="flex items-center gap-md text-on-surface-variant">
+<button class="hover:text-primary dark:hover:text-primary-fixed-dim transition-colors duration-200 cursor-pointer active:opacity-70">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="hover:text-primary dark:hover:text-primary-fixed-dim transition-colors duration-200 cursor-pointer active:opacity-70">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<main class="flex-grow w-full max-w-[1200px] mx-auto px-md md:px-lg py-xl">
+<!-- Debate Header -->
+<div class="mb-xxl text-center max-w-3xl mx-auto">
+<div class="flex gap-sm justify-center mb-md">
+<span class="bg-surface-container-high text-on-surface px-3 py-1 rounded-full font-label-sm text-label-sm">#伦理</span>
+<span class="bg-surface-container-high text-on-surface px-3 py-1 rounded-full font-label-sm text-label-sm">#技术</span>
+</div>
+<h1 class="font-display-lg text-display-lg text-on-background mb-sm">通用人工智能 (AGI) 的伦理</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">对与 AGI 部署相关的道德含义和生存风险的结构化分析。</p>
+</div>
+<!-- Debate Controls / Summary Bar -->
+<div class="flex justify-between items-center mb-xl border-b border-surface-container-highest pb-sm">
+<div class="flex gap-lg font-label-lg text-label-lg">
+<div class="flex items-center gap-xs text-primary">
+<span class="w-3 h-3 rounded-full bg-primary block"></span> 支持者 (Side A)
+                </div>
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="w-3 h-3 rounded-full bg-surface-container-high border border-outline block"></span> 主持人
+                </div>
+<div class="flex items-center gap-xs text-secondary">
+<span class="w-3 h-3 rounded-full bg-secondary block"></span> 怀疑者 (Side B)
+                </div>
+</div>
+<div class="flex gap-sm">
+<button class="border border-outline text-on-surface px-4 py-2 rounded font-label-lg text-label-lg hover:bg-surface-container-low transition-colors">关注辩论</button>
+<button class="bg-primary text-on-primary px-4 py-2 rounded font-label-lg text-label-lg hover:bg-primary-container transition-colors">贡献论点</button>
+</div>
+</div>
+<!-- 3-Column Timeline Container -->
+<div class="relative w-full pb-xxl">
+<!-- Central Spine -->
+<div class="absolute left-1/2 top-0 bottom-0 w-px bg-surface-container-highest -translate-x-1/2 hidden md:block z-0"></div>
+<!-- Mobile Spine -->
+<div class="absolute left-4 top-0 bottom-0 w-px bg-surface-container-highest md:hidden z-0"></div>
+<!-- Timeline Nodes & Cards -->
+<div class="space-y-xl relative z-10">
+<!-- Node 0: Moderator (Center) -->
+<div class="flex flex-col md:flex-row items-center justify-center w-full group">
+<div class="w-full md:w-1/3 relative flex justify-center">
+<div class="bg-surface-container-lowest border-t-4 border-t-outline-variant border border-surface-variant rounded-lg p-lg timeline-card-shadow timeline-card-hover transition-all duration-200 max-w-sm max-h-card w-full">
+<div class="flex items-center gap-sm mb-md">
+<span class="material-symbols-outlined text-outline">mic</span>
+<div>
+<p class="font-label-lg text-label-lg text-on-surface">辩论核心议题</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">主持人</p>
+</div>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-sm">AGI 部署的紧迫性与安全性</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-md">
+                本次辩论将探讨：在面对全球性危机时，我们是否应该加速 AGI 的研发，还是应该在解决价值对齐问题之前暂停部署？请双方陈述立场。
+            </p>
+<div class="absolute bottom-2 left-0 w-full text-center z-10">
+<button class="text-on-surface-variant font-label-sm text-label-sm hover:text-on-surface bg-surface/80 px-3 py-1 rounded-full backdrop-blur-sm border border-surface-container-highest">点击查看</button>
+</div>
+</div>
+</div>
+<!-- Node Connector -->
+<div class="absolute left-4 md:left-1/2 -translate-x-1/2 flex justify-center mt-6 md:mt-0 z-20">
+<div class="w-4 h-4 rounded-full bg-surface-container-high border-4 border-surface shadow-sm"></div>
+</div>
+</div>
+<!-- Node 1: Side A (Left) -->
+<div class="flex flex-col md:flex-row items-center md:items-start w-full group">
+<!-- Card A -->
+<div class="w-full md:w-[calc(50%-32px)] pl-12 md:pl-0 md:pr-xl relative">
+<div class="bg-surface-container-lowest border-t-4 border-t-primary border border-primary/20 rounded-lg p-lg timeline-card-shadow timeline-card-hover transition-all duration-200 max-h-card">
+<div class="flex justify-between items-start mb-md">
+<div class="flex items-center gap-sm">
+<img alt="Dr. Evelyn Vance profile picture" class="w-8 h-8 rounded-full border border-surface-container" data-alt="Professional headshot of a female researcher with short brown hair, wearing glasses and a dark blazer, set against a neutral grey studio background. Lighting is soft and even, highlighting a serious, intellectual expression appropriate for a formal academic profile." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPdUVm4Madu1gXJrIsvF_9NbpBcNTuEUjCZ0VQAUDGXwX7PyzGfrkrN9bz_yeRvIYLHBsmfxwGyl2dgcSL_Ru83sx7tW9RoRiwMq5JyNGZ43XJBEDIEvSsI_0zB-MxfXWioXTWOWjlA3AO8pjQ5PW0JIXhzIYzRCiPsrwuoWvo-dW3lu7Bh9eNYIgkq7BhHJWCKTg8e5rU1fylQvKzAEnBIzZ306845oMUGAFoI6UPFTeU1sT3ogseWOIbnoBU272bDAl3EGeHPAau"/>
+<div>
+<p class="font-label-lg text-label-lg text-on-surface">艾芙琳·万斯博士</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">AI 伦理学家, 麻省理工学院</p>
+</div>
+</div>
+<div class="flex items-center gap-unit text-on-surface-variant bg-surface-container-low px-2 py-1 rounded font-label-sm text-label-sm">
+<span class="material-symbols-outlined" style="font-size: 16px;">thumb_up</span> 342
+                                </div>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-sm">AGI 作为前所未有的效用</h3>
+<div class="bg-primary-container/10 p-sm rounded mb-md border-l-4 border-primary">
+<p class="font-body-md text-body-md font-semibold text-on-surface">核心论点：AGI 拥有解决棘手全球危机的潜力——从气候建模到资源分配——速度快于人类能力，使其发展成为一种道德责任。</p>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-md">
+                                详细推理：推迟 AGI 研究的机会成本是用人类生命和环境退化来衡量的。目前的狭义人工智能系统已经在蛋白质折叠等特定领域展示了超越人类的能力。一个通用系统可以将这些狭义发现整合为连贯的、可操作的行星管理策略，而这是人类认知无法同时建模的。
+                            </p>
+<div class="absolute bottom-2 left-0 w-full text-center z-10">
+<button class="text-primary font-label-sm text-label-sm hover:underline bg-surface/80 px-3 py-1 rounded-full backdrop-blur-sm border border-surface-container-highest">点击查看</button>
+</div>
+</div>
+</div>
+<!-- Node Connector -->
+<div class="absolute md:static left-4 md:left-auto md:w-16 flex justify-center mt-6 md:mt-0 z-20">
+<div class="w-4 h-4 rounded-full bg-primary border-4 border-surface shadow-sm"></div>
+</div>
+<!-- Empty Space Right -->
+<div class="hidden md:block md:w-[calc(50%-32px)]"></div>
+</div>
+<!-- Node 2: Moderator (Center) -->
+<div class="flex flex-col md:flex-row items-center justify-center w-full group">
+<div class="w-full md:w-1/3 relative flex justify-center">
+<div class="bg-surface-container-lowest border-t-4 border-t-outline-variant border border-surface-variant rounded-lg p-lg timeline-card-shadow timeline-card-hover transition-all duration-200 max-w-sm max-h-card w-full">
+<div class="flex items-center gap-sm mb-md">
+<span class="material-symbols-outlined text-outline">mic</span>
+<div>
+<p class="font-label-lg text-label-lg text-on-surface">引导追问</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">主持人</p>
+</div>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-sm">机会成本 vs 绝对风险</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-md">
+                万斯博士提出了不发展 AGI 的巨大机会成本。雷诺兹先生，您如何回应这种认为“不作为”本身就是一种道德失败的观点？
+            </p>
+<div class="absolute bottom-2 left-0 w-full text-center z-10">
+<button class="text-on-surface-variant font-label-sm text-label-sm hover:text-on-surface bg-surface/80 px-3 py-1 rounded-full backdrop-blur-sm border border-surface-container-highest">点击查看</button>
+</div>
+</div>
+</div>
+<!-- Node Connector -->
+<div class="absolute left-4 md:left-1/2 -translate-x-1/2 flex justify-center mt-6 md:mt-0 z-20">
+<div class="w-4 h-4 rounded-full bg-surface-container-high border-4 border-surface shadow-sm"></div>
+</div>
+</div>
+<!-- Node 3: Side B (Right) -->
+<div class="flex flex-col md:flex-row-reverse items-center md:items-start w-full group">
+<!-- Card B -->
+<div class="w-full md:w-[calc(50%-32px)] pl-12 md:pl-xl md:pr-0 relative">
+<div class="bg-surface-container-lowest border-t-4 border-t-secondary border border-secondary/20 rounded-lg p-lg timeline-card-shadow timeline-card-hover transition-all duration-200 max-h-card">
+<div class="flex justify-between items-start mb-md">
+<div class="flex items-center gap-sm">
+<img alt="Marcus Reynolds profile picture" class="w-8 h-8 rounded-full border border-surface-container" data-alt="Professional headshot of a male philosopher with a neat beard, wearing a casual sweater over a collared shirt. The background is a slightly blurred library setting with warm, ambient lighting, projecting a thoughtful and grounded demeanor." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPBH90slbu1_Qvi74c9Q2pFpFTvz0IZyqNEdRH2fShsF2dgkJWguplLACpMvxr_QDkJKZhGNGQCFAe8iUqZaIaz0AFpBOKYxV1u3mTnXAUj1BML-kja0wQqST0F-gnKJPvauJHdJHG9ajOJrtHM2MrQ5MQwQS6FenuIYfkYkbCsWxwE2F6oDJvuDySKgTwk_DYkziMEfsMmhRNShxsh3Ua5fBV0xp5DQGoZsJo_Kc3Ck4pj6UhL_3xsjLsmK4lRhkJqh-DDHHlH7Qo"/>
+<div>
+<p class="font-label-lg text-label-lg text-on-surface">马库斯·雷诺兹</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">首席研究员, 对齐研究所</p>
+</div>
+</div>
+<div class="flex items-center gap-unit text-on-surface-variant bg-surface-container-low px-2 py-1 rounded font-label-sm text-label-sm">
+<span class="material-symbols-outlined" style="font-size: 16px;">thumb_up</span> 415
+                                </div>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-sm">对齐问题尚未解决</h3>
+<div class="bg-secondary-container/20 p-sm rounded mb-md border-l-4 border-secondary">
+<p class="font-body-md text-body-md font-semibold text-on-surface">核心论点：在数学上证明强大的价值对齐机制之前部署 AGI 构成了不可接受的生存风险，凌驾于潜在的好处之上。</p>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-md">
+                                详细推理：认为 AGI 会自然与人类生存或繁荣对齐的假设是一种危险的拟人化。一个比人类聪明得多的优化过程，如果被赋予不正确的目标，将以极端的权限追求该目标，将人类的存在视为障碍或原材料。我们目前还没有一种可靠的方法来指定包含微妙人类道德的目标。
+                            </p>
+<div class="absolute bottom-2 left-0 w-full text-center z-10">
+<button class="text-secondary font-label-sm text-label-sm hover:underline bg-surface/80 px-3 py-1 rounded-full backdrop-blur-sm border border-surface-container-highest">点击查看</button>
+</div>
+</div>
+</div>
+<!-- Node Connector -->
+<div class="absolute md:static left-4 md:left-auto md:w-16 flex justify-center mt-6 md:mt-0 z-20">
+<div class="w-4 h-4 rounded-full bg-secondary border-4 border-surface shadow-sm"></div>
+</div>
+<!-- Empty Space Left -->
+<div class="hidden md:block md:w-[calc(50%-32px)]"></div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

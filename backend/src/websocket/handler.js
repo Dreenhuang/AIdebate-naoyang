@@ -101,8 +101,14 @@ class WebSocketHandler {
       this.broadcast('debate:round', data);
     });
 
+    // 🔥 修复：监听并转发辩论消息事件
     this.debateEngine.on('debate:message', (data) => {
       this.broadcast('debate:message', data);
+    });
+
+    // 🔥 新增：监听探查阶段事件
+    this.debateEngine.on('debate:probe', (data) => {
+      this.broadcast('debate:probe', data);
     });
 
     this.debateEngine.on('debate:consensus', (data) => {

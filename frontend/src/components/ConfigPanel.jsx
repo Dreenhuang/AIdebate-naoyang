@@ -1,4 +1,4 @@
-import { Play, Square, RotateCcw, Plus, Target, Settings, Wifi, WifiOff, Shuffle, Sparkles } from 'lucide-react';
+import { Play, Square, RotateCcw, Plus, Target, Settings, Wifi, WifiOff, Shuffle, Sparkles, ChevronLeft } from 'lucide-react';
 import { useDebateStore } from '../stores/debateStore';
 import RoleCard from './RoleCard';
 import DocumentUpload from './DocumentUpload';
@@ -20,19 +20,21 @@ export default function ConfigPanel({ onStart, onStop, onReset }) {
 
   return (
     <div className="w-[320px] bg-gray-1 flex flex-col h-full border-r border-gray-3">
+      {/* 顶部收起按钮 */}
+      <div className="flex justify-end p-2">
+        <button
+          onClick={toggleSidebar}
+          className="p-2 hover:bg-gray-2 rounded-md transition-colors text-gray-6 focus-ring"
+          title="收起配置面板"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+      </div>
+      
       <div className="p-4 border-b border-gray-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-brand-5" />
-            <h2 className="text-h4 font-semibold text-gray-9">配置面板</h2>
-          </div>
-          <button
-            onClick={toggleSidebar}
-            className="p-2 hover:bg-gray-2 rounded-md transition-colors text-gray-7 focus-ring"
-            title="收起配置面板"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-2">
+          <Settings className="w-5 h-5 text-brand-5" />
+          <h2 className="text-h4 font-semibold text-gray-9">配置面板</h2>
         </div>
       </div>
       

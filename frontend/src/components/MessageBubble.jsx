@@ -1,6 +1,4 @@
 import { User, Bot } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
 const roleColors = {
   '主持人': 'bg-role-host',
@@ -22,6 +20,19 @@ export default function MessageBubble({ message }) {
 
   const colorClass = roleColors[role] || 'bg-brand-primary';
   const Icon = roleIcons[role] || User;
+
+  const renderMarkdownAsText = (content) => {
+    if (!content) return '';
+    return content
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)')
+      .replace(/[*_]{1,2}([^*_]+)[*_]{1,2}/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/^[-*+]\s+/gm, '• ')
+      .replace(/^\d+\.\s+/gm, '')
+      .replace(/>\s+/g, '')
+      .replace(/\n{3,}/g, '\n\n');
+  };
 
   if (isSystem) {
     return (
@@ -47,34 +58,8 @@ export default function MessageBubble({ message }) {
           </span>
         </div>
 
-        <div className="bg-gray-2/60 backdrop-blur-sm rounded-large p-4 border border-gray-3/50 shadow-1
-          prose prose-sm dark:prose-invert max-w-none
-          prose-headings:text-gray-9
-          prose-headings:font-semibold
-          prose-h1:text-lg prose-h1:mb-3 prose-h1:mt-0 prose-h1:pb-2 prose-h1:border-b
-          prose-h2:text-base prose-h2:mt-5 prose-h2:mb-2.5 prose-h2:text-brand-5/90
-          prose-h3:text-sm prose-h3:mt-4 prose-h3:mb-2 prose-h3:text-gray-7
-          prose-p:text-gray-9 prose-p:leading-relaxed prose-p:my-2.5
-          prose-p:not(:last-child):mb-3
-          prose-strong:text-brand-5 prose-strong:font-semibold
-          prose-em:text-gray-7
-          prose-code:text-gray-9 prose-code:bg-gray-2/80 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-xs
-          prose-pre:bg-gray-2 prose-pre:border prose-pre:border-gray-3 prose-pre:rounded-lg prose-pre:p-4 prose-pre:my-4
-          prose-li:text-gray-9 prose-li:my-1 prose-li:leading-relaxed
-          prose-ul:my-3 prose-ul:pl-5
-          prose-ol:my-3 prose-ol:pl-5
-          prose-blockquote:border-l-3 prose-blockquote:border-brand-5/40 prose-blockquote:pl-4 prose-blockquote:py-2 prose-blockquote:my-3 prose-blockquote:text-gray-7 prose-blockquote:italic
-          [&_a]:text-brand-5 [&_a]:no-underline hover:[&_a]:underline [&_a]:transition-colors
-          [&_hr]:my-6 [&_hr]:border-gray-3
-
-          [&_table]:w-full [&_table]:my-4 [&_table]:border-collapse
-          [&_thead]:bg-gray-2/80 [&_thead]:border-b-2 [&_thead]:border-gray-3
-          [&_th]:px-3 [&_th]:py-2.5 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-gray-9 [&_th]:uppercase [&_th]:tracking-wider
-          [&_tbody_tr]:border-b [&_tbody_tr]:border-gray-3/50 [&_tbody_tr]:hover:bg-gray-2/30 [&_tbody_tr]:transition-colors
-          [&_td]:px-3 [&_td]:py-2.5 [&_td]:text-sm [&_td]:text-gray-9
-          [&_tr:last-child_td]:border-b-0
-        ">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        <div className="bg-gray-2/60 backdrop-blur-sm rounded-large p-4 border border-gray-3/50 shadow-1 text-sm leading-relaxed whitespace-pre-wrap text-gray-9">
+          {renderMarkdownAsText(content)}
         </div>
 
         {(phase !== undefined || round !== undefined) && (

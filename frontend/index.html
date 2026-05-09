@@ -19,16 +19,9 @@
     <script>
       // 初始化主题，防止闪烁
       (function() {
-        const theme = localStorage.getItem('prd-debate-theme') || 'dark';
-        let resolved = theme;
-        if (theme === 'system') {
-          resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
-        if (resolved === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
+        const theme = localStorage.getItem('prd-debate-theme') || 'tech-blue';
+        document.documentElement.classList.remove('theme-xiaohongshu', 'theme-tech-blue', 'dark');
+        document.documentElement.classList.add('theme-' + theme);
       })();
     </script>
   </head>

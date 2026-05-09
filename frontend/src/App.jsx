@@ -6,8 +6,10 @@ import StatusBar from './components/StatusBar';
 import FileManager from './components/FileManager';
 import SoulManager from './components/SoulManager';
 import DebatePhaseIndicator from './components/DebatePhaseIndicator';
+import DebateStatusBar from './components/DebateStatusBar'; // 🔥 新增：辩论进行时的紧凑状态栏
 import ConsensusPanel from './components/ConsensusPanel';
 import ExportButton from './components/ExportButton';
+import ErrorBoundary from './components/ErrorBoundary'; // 🔥 V2.2 新增
 import { useTheme } from './hooks/useTheme';
 import { useSound } from './hooks/useSound';
 import { ThemeToggle } from './components/ThemeToggle';
@@ -284,9 +286,24 @@ function App() {
           <DebatePhaseIndicator />
 
           <div className="flex-1 flex min-h-0">
-            {/* 消息流区域 */}
+            {/* 消息流区域 - 添加错误边界保护 */}
             <div className="flex-1 min-w-0 overflow-y-auto">
-              <MessageStream />
+              <ErrorBoundary
+                fallback={({ error, resetError }) => (
+                  <div className="p-4 m-4 bg-red-50 border border-red-200 rounded-xl">
+                    <h3 className="text-red-600 font-bold mb-2">⚠️ 消息显示出错</h3>
+                    <p className="text-red-500 text-sm mb-3">这通常是因为 AI 回复包含无法处理的格式。</p>
+                    <button
+                      onClick={resetError}
+                      className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600"
+                    >
+                      重试显示
+                    </button>
+                  </div>
+                )}
+              >
+                <MessageStream />
+              </ErrorBoundary>
             </div>
 
             {/* 右侧共识面板 */}
@@ -306,6 +323,11 @@ function App() {
             <StatusBar />
             <FileManager />
           </div>
+
+          {/* 🔥 辩论进行时的紧凑状态栏 - 显示在底部当详细面板被隐藏时 */}
+          {isDebating && !bottomPanelVisible && (
+            <DebateStatusBar />
+          )}
 
           {/* 导出按钮栏 */}
           <div className="border-t border-border-primary px-4 py-2 flex items-center justify-between bg-bg-secondary flex-shrink-0">
