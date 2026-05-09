@@ -41,6 +41,11 @@ class DebateEngine extends EventEmitter {
     this.maxRounds = config.maxRounds || 5;
     this.maxPhases = config.maxPhases || 4;
 
+    // 🔥 新增：输出深度和模式配置
+    this.outputDepth = config.outputDepth || 'normal';
+    this.modeId = config.modeId;
+    this.displayStyle = config.displayStyle;
+
     // 状态
     this.status = 'idle';
     this.currentPhase = 0;
@@ -74,6 +79,7 @@ class DebateEngine extends EventEmitter {
     console.log(`[DebateEngine] API端点: ${this.aiClient.baseURL}`);
     console.log(`[DebateEngine] 超时设置: ${apiTimeout}ms`);
     console.log(`[DebateEngine] 最大重试: ${this.apiConfig.maxRetries}次`);
+    console.log(`[DebateEngine] 输出深度: ${this.outputDepth}`);
 
     // 上下文管理
     this.contextManager = new ContextManager(this);
@@ -920,13 +926,25 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
   /**
    * 🔥 V2.2 修复：流式 AI 调用（逐字/逐块输出）
    * 实现实时流式显示，提升用户体验
+   * @param {string} systemPrompt - 系统提示（角色设定）
+   * @param {string} userPrompt - 用户提示（任务内容）
+   * @param {string} modelName - 模型名称（可选）
+   * @param {object} messageMeta - 消息元数据（可选）
+   * @param {function} onChunk - 回调函数（可选）
+   * @param {string} outputDepth - 输出深度（可选，默认 this.outputDepth）
    */
-  async callAIStream(systemPrompt, userPrompt, modelName = null, messageMeta = null, onChunk = null) {
+  async callAIStream(systemPrompt, userPrompt, modelName = null, messageMeta = null, onChunk = null, outputDepth = null) {
     const model = modelName || this.apiConfig.defaultModel;
     const timeout = this.apiConfig.timeout;
+    const depth = outputDepth || this.outputDepth || 'normal';
 
     console.log(`\n[DebateEngine] 🌊 开始流式调用AI API...`);
     console.log(`[DebateEngine] 模型: ${model} (流式模式)`);
+    console.log(`[DebateEngine] 输出深度: ${depth}`);
+
+    // 🔥 新增：根据输出深度获取指令模板
+    const depthInstruction = this.getDepthInstruction(depth);
+    const finalSystemPrompt = depthInstruction + '\n\n' + systemPrompt;
 
     // 🔥 修复：传递消息元数据
     this.emit('debate:stream:start', {
@@ -945,7 +963,7 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
       const stream = await this.aiClient.chat.completions.create({
         model: model,
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: finalSystemPrompt },
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.3,  // 🔥 降低温度减少重复生成
@@ -1259,6 +1277,52 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
 
   getRole(roleType) {
     return this.roles.find(r => r.roleType === roleType);
+  }
+
+  /**
+   * 🔥 新增：根据输出深度获取指令模板
+   * @param {string} depth - 输出深度 ('brief' | 'normal' | 'detailed')
+   * @returns {string} 深度指令字符串
+   */
+  getDepthInstruction(depth) {
+    const depthConfigs = {
+      brief: {
+        id: 'brief',
+        name: '简短讨论',
+        instruction: `请用简洁的语言回答，控制在50-150字以内。
+要求：
+- 一句话表达核心观点
+- 可以有一个补充说明
+- 不展开详细论证
+- 直击要害，不废话`,
+      },
+      normal: {
+        id: 'normal',
+        name: '深入讨论',
+        instruction: `请用适中的长度回答，控制在200-500字以内。
+要求：
+- 清晰表达核心观点
+- 给出支撑理由（2-3个要点）
+- 可以有一个简短案例
+- 逻辑清晰，层次分明`,
+      },
+      detailed: {
+        id: 'detailed',
+        name: '详细研究',
+        instruction: `请详细深入地回答，控制在800-2000字以内。
+要求：
+- 系统性地分析问题
+- 多个维度的深度论证
+- 引用数据和案例支撑
+- 分析风险和不确定性
+- 给出前瞻性思考
+- 可以使用结构化表达`,
+      },
+    };
+
+    const config = depthConfigs[depth] || depthConfigs.normal;
+    console.log(`[DebateEngine] 使用输出深度配置: ${config.name}`);
+    return config.instruction;
   }
 
   getCurrentPhaseKeyQuestions() {

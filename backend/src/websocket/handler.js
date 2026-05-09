@@ -75,6 +75,10 @@ class WebSocketHandler {
         roles: config.roles,
         maxRounds: config.roundsPerPhase || 5,
         maxPhases: config.totalPhases || 4,
+        // 🔥 新增：传递输出深度和模式配置
+        outputDepth: config.outputDepth || 'normal',
+        modeId: config.modeId,
+        displayStyle: config.displayStyle,
       });
 
       this.setupDebateEngineListeners();

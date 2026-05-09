@@ -17,6 +17,7 @@ import { Celebration } from './components/Celebration';
 import { ReconnectToast } from './components/ReconnectToast';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useDebateStore } from './stores/debateStore';
+import { useModeStore } from './stores/modeStore';
 import OfflineIndicator from './components/OfflineIndicator'; // 🔥 V2.2 新增
 import { PanelLeft, PanelRight, PanelBottom, Minimize2, Maximize2, Layout, Eye, EyeOff } from 'lucide-react';
 
@@ -39,6 +40,7 @@ function App() {
    */
   const handleStart = () => {
     const { config } = useDebateStore.getState();
+    const { outputDepth, currentMode } = useModeStore.getState();
 
     // 验证配置有效性
     if (!config.topic) {
@@ -51,8 +53,16 @@ function App() {
       return;
     }
 
+    // 构建完整的辩论配置（包含输出深度和模式信息）
+    const debateConfig = {
+      ...config,
+      outputDepth, // 输出深度控制
+      modeId: currentMode?.id, // 当前模式ID
+      displayStyle: currentMode?.displayStyle, // 显示样式
+    };
+
     // 发送开始消息到后端
-    send('debate:start', config);
+    send('debate:start', debateConfig);
 
     if (soundEnabled) playSoftDing();
 
