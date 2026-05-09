@@ -43,6 +43,8 @@ export function useWebSocket() {
     setDebateStatus: null,
     setPhase: null,
     setRound: null,
+    setTotalPhases: null,
+    setTotalRounds: null,
     addCommitment: null,
     addConsensus: null,
     addBacktrackResult: null,
@@ -52,6 +54,7 @@ export function useWebSocket() {
     appendStreamChunk: null,
     endStream: null,
     cancelStream: null,
+    setStreamMeta: null, // 🔥 V2.2 新增
   });
 
   const {
@@ -61,6 +64,8 @@ export function useWebSocket() {
     setDebateStatus,
     setPhase,
     setRound,
+    setTotalPhases,
+    setTotalRounds,
     addCommitment,
     addConsensus,
     addBacktrackResult,
@@ -70,6 +75,7 @@ export function useWebSocket() {
     appendStreamChunk,
     endStream,
     cancelStream,
+    setStreamMeta, // 🔥 V2.2 新增
   } = useDebateStore();
 
   useEffect(() => {
@@ -80,6 +86,8 @@ export function useWebSocket() {
       setDebateStatus,
       setPhase,
       setRound,
+      setTotalPhases,
+      setTotalRounds,
       addCommitment,
       addConsensus,
       addBacktrackResult,
@@ -89,8 +97,9 @@ export function useWebSocket() {
       appendStreamChunk,
       endStream,
       cancelStream,
+      setStreamMeta, // 🔥 V2.2 新增
     };
-  }, [setWsConnected, setWsReconnecting, addMessage, setDebateStatus, setPhase, setRound, addCommitment, addConsensus, addBacktrackResult, setFiles, startStream, appendStreamChunk, endStream, cancelStream]);
+  }, [setWsConnected, setWsReconnecting, addMessage, setDebateStatus, setPhase, setRound, setTotalPhases, setTotalRounds, addCommitment, addConsensus, addBacktrackResult, setFiles, startStream, appendStreamChunk, endStream, cancelStream, setStreamMeta]);
 
   const clearReconnectTimer = useCallback(() => {
     if (reconnectTimer.current) {
@@ -151,15 +160,31 @@ export function useWebSocket() {
           switch (type) {
             case 'debate:started':
               storeActions.current.setDebateStatus?.('running');
+              if (payload?.phases) {
+                storeActions.current.setTotalPhases?.(payload.phases);
+              }
+              if (payload?.totalRounds) {
+                storeActions.current.setTotalRounds?.(payload.totalRounds);
+              }
               break;
             case 'debate:stopped':
               storeActions.current.setDebateStatus?.('idle');
               break;
             case 'debate:phase':
               storeActions.current.setPhase?.(payload.phase || 0);
+              if (payload?.totalPhases) {
+                storeActions.current.setTotalPhases?.(payload.totalPhases);
+              }
               break;
             case 'debate:round':
               storeActions.current.setRound?.(payload.round || 0);
+              if (payload?.totalRounds) {
+                storeActions.current.setTotalRounds?.(payload.totalRounds);
+              }
+              break;
+            case 'debate:probe':
+              // 阶段探查事件 - 可以在这里记录探查内容，但不需要特殊处理
+              console.log('[WebSocket] 📋 Probe event:', payload);
               break;
             case 'debate:message':
               storeActions.current.addMessage?.(payload);
@@ -190,6 +215,9 @@ export function useWebSocket() {
             // 🔥 V2.2 新增：流式输出事件
             case 'debate:stream:start':
               console.log('[WebSocket] 🌊 Stream started');
+              console.log('[WebSocket] Stream metadata:', payload);
+              // 更新流式元数据到 store
+              storeActions.current.setStreamMeta?.(payload || {});
               storeActions.current.startStream?.();
               break;
             case 'debate:stream:chunk':

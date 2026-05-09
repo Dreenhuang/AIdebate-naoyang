@@ -176,6 +176,7 @@ class DebateService {
     this.broadcast('debate:started', {
       topic: this.debateState.config.topic,
       phases: this.debateState.totalPhases,
+      totalRounds: this.debateState.totalRounds,
     });
 
     const interval = setInterval(() => {
@@ -207,6 +208,8 @@ class DebateService {
             this.broadcast('debate:phase', {
               phase: this.debateState.currentPhase,
               phaseName: `阶段 ${this.debateState.currentPhase}`,
+              totalPhases: this.debateState.totalPhases,
+              totalRounds: this.debateState.totalRounds,
             });
 
             if (this.debateState.currentPhase > this.debateState.totalPhases) {
@@ -233,6 +236,8 @@ class DebateService {
           this.broadcast('debate:round', {
             round: this.debateState.currentRound,
             phase: this.debateState.currentPhase,
+            totalRounds: this.debateState.totalRounds,
+            totalPhases: this.debateState.totalPhases,
           });
         }
       }

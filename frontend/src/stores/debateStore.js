@@ -73,6 +73,8 @@ export const useDebateStore = create((set, get) => ({
   setDebateStatus: (status) => set({ debateStatus: status }),
   setPhase: (phase) => set({ currentPhase: phase }),
   setRound: (round) => set({ currentRound: round }),
+  setTotalPhases: (total) => set({ totalPhases: total }),
+  setTotalRounds: (total) => set({ totalRounds: total }),
 
   addMessage: (message) => set((state) => ({
     messages: [...state.messages, message]
@@ -98,20 +100,56 @@ export const useDebateStore = create((set, get) => ({
 
   setFiles: (files) => set({ files }),
 
-  // 🔥 V2.2 新增：流式输出 Actions
+  // 🔥 V2.2 修复：流式输出 Actions
   startStream: () => set({
     isStreaming: true,
     streamContent: '',
     canCancel: true,
+    streamMessageId: null, // 将在 setStreamMeta 中设置
   }),
+
+  setStreamMeta: (meta) => set((state) => ({
+    // 根据元数据创建消息ID
+    streamMessageId: `${meta.phase || 0}-${meta.role || 'proposer'}-${meta.round || 0}-${Date.now()}`,
+  })),
 
   appendStreamChunk: (chunk) => set((state) => ({
     streamContent: state.streamContent + chunk,
   })),
 
   endStream: () => set((state) => {
-    // 将流式内容转换为正式消息
     const content = state.streamContent;
+    const messageId = state.streamMessageId;
+
+    // 如果有流式内容，创建正式消息
+    if (content && messageId) {
+      // 从 messageId 提取角色信息（格式：phaseId-roleType-round-timestamp）
+      const parts = messageId.split('-');
+      const roleType = parts[1] || 'proposer';
+      const phase = parseInt(parts[0]) || 0;
+      const round = parseInt(parts[2]) || 0;
+
+      const newMessage = {
+        id: messageId,
+        type: roleType === 'reviewer' ? 'review' : 'proposal',
+        role: roleType,
+        roleName: roleType === 'proposer' ? '提案者' : roleType === 'reviewer' ? '审查者' : '主持人',
+        phase: phase,
+        round: round,
+        phaseId: state.phases[phase]?.id || 'probe',
+        content: content,
+        timestamp: new Date().toISOString(),
+      };
+
+      return {
+        isStreaming: false,
+        streamContent: '',
+        canCancel: false,
+        streamMessageId: null,
+        messages: [...state.messages, newMessage],
+      };
+    }
+
     return {
       isStreaming: false,
       streamContent: '',

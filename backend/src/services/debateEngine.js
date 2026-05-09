@@ -56,10 +56,11 @@ class DebateEngine extends EventEmitter {
     // AI 客户端初始化（带超时保护）
     const apiTimeout = parseInt(process.env.API_TIMEOUT_MS) || 60000; // 默认60秒超时
 
+    // 🔥 修复：直接使用正确的 API Key，避免被系统环境变量覆盖
     this.aiClient = new OpenAI({
-      apiKey: process.env.DEEPSEEK_API_KEY || 'sk-7f85a014ff1f4fb7938163b2717b70d5',
-      baseURL: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
-      timeout: apiTimeout, // 🔥 新增：全局超时设置
+      apiKey: 'sk-7f85a014ff1f4fb7938163b2717b70d5',
+      baseURL: 'https://api.deepseek.com',
+      timeout: apiTimeout,
     });
 
     // 🔥 新增：API 调用配置
@@ -294,6 +295,8 @@ class DebateEngine extends EventEmitter {
       id: this.id,
       topic: this.topic,
       phases: this.phases,
+      totalPhases: this.maxPhases,
+      totalRounds: this.maxRounds,
     });
     
     // 开始第一阶段
@@ -319,6 +322,7 @@ class DebateEngine extends EventEmitter {
       phaseId: phase.id,
       phaseName: phase.name,
       totalPhases: this.phases.length,
+      totalRounds: this.maxRounds,
     });
     
     // 阶段探查（Probe）
@@ -368,6 +372,8 @@ class DebateEngine extends EventEmitter {
       round: roundNumber,
       phase: this.currentPhase,
       phaseId: this.phases[this.currentPhase].id,
+      totalRounds: this.maxRounds,
+      totalPhases: this.maxPhases,
     });
     
     // 执行 Proposer
@@ -384,11 +390,18 @@ class DebateEngine extends EventEmitter {
     const context = this.contextManager.getProposerContext();
     const prompt = this.buildProposerPrompt(context);
 
-    // 🔥 V2.2 改用流式调用
+    // 🔥 V2.2 修复：传递消息元数据
     const content = await this.callAIStream(
       proposer.soul || '你是一位提案者，负责提出建设性方案',
       prompt,
       proposer.model,
+      {
+        role: ROLES.PROPOSER,
+        roleName: proposer.name,
+        phase: this.currentPhase,
+        round: this.currentRound,
+        phaseId: this.phases[this.currentPhase].id,
+      },
       (chunk, fullContent) => {
         // 实时回调（可选）
       }
@@ -421,16 +434,30 @@ class DebateEngine extends EventEmitter {
    */
   async executeReviewer(proposal) {
     const reviewer = this.getRole(ROLES.REVIEWER);
-    if (!reviewer) return;
+    if (!reviewer) {
+      console.warn('[DebateEngine] ⚠️ Reviewer 角色未找到，跳过审查环节');
+      // 如果没有 Reviewer，直接推进到下一轮
+      await this.checkProgression({ verdict: 'adequate' });
+      return;
+    }
+
+    console.log(`[DebateEngine] 🔍 Reviewer 准备审查提案: ${proposal.content?.substring(0, 50)}...`);
 
     const context = this.contextManager.getReviewerContext(proposal);
     const prompt = this.buildReviewerPrompt(context);
 
-    // 🔥 V2.2 改用流式调用
+    // 🔥 V2.2 修复：传递消息元数据
     const content = await this.callAIStream(
       reviewer.soul || '你是一位审查者，负责严格审查提案',
       prompt,
-      reviewer.model
+      reviewer.model,
+      {
+        role: ROLES.REVIEWER,
+        roleName: reviewer.name,
+        phase: this.currentPhase,
+        round: this.currentRound,
+        phaseId: this.phases[this.currentPhase].id,
+      }
     );
 
     if (content === '[已取消]') {
@@ -531,10 +558,19 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
 - 控制总字数在400-700字之间
 - 如果verdict是REJECTED，你需要更有力地辩护核心主张`;
 
+    // 🔥 V2.2 修复：传递消息元数据
     const content = await this.callAIStream(
       proposer.soul || '你是一位专业的提案者',
       prompt,
-      proposer.model
+      proposer.model,
+      {
+        role: ROLES.PROPOSER,
+        roleName: proposer.name,
+        phase: this.currentPhase,
+        round: this.currentRound,
+        phaseId: this.phases[this.currentPhase].id,
+        type: 'rebuttal',
+      }
     );
 
     if (content === '[已取消]') {
@@ -779,6 +815,27 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
   }
 
   /**
+   * 🔥 新增：尝试推进阶段（修复缺失的方法）
+   * 在达到最大轮次时调用，尝试进入下一阶段
+   */
+  async attemptPhaseProgression() {
+    console.log(`[DebateEngine] 尝试推进到下一阶段...`);
+    
+    // 生成当前阶段的共识
+    await this.generateConsensus();
+    
+    // 尝试进入下一阶段
+    const nextPhase = this.currentPhase + 1;
+    if (nextPhase < this.phases.length) {
+      console.log(`[DebateEngine] 进入阶段 ${nextPhase}: ${this.phases[nextPhase].name}`);
+      await this.startPhase(nextPhase);
+    } else {
+      console.log(`[DebateEngine] 所有阶段已完成，结束辩论`);
+      await this.complete();
+    }
+  }
+
+  /**
    * 生成本阶段共识
    */
   async generateConsensus() {
@@ -861,20 +918,21 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
   // ===== 辅助方法 =====
 
   /**
-   * 🔥 V2.2 新增：流式 AI 调用（逐字/逐块输出）
+   * 🔥 V2.2 修复：流式 AI 调用（逐字/逐块输出）
    * 实现实时流式显示，提升用户体验
    */
-  async callAIStream(systemPrompt, userPrompt, modelName = null, onChunk = null) {
+  async callAIStream(systemPrompt, userPrompt, modelName = null, messageMeta = null, onChunk = null) {
     const model = modelName || this.apiConfig.defaultModel;
     const timeout = this.apiConfig.timeout;
 
     console.log(`\n[DebateEngine] 🌊 开始流式调用AI API...`);
     console.log(`[DebateEngine] 模型: ${model} (流式模式)`);
 
-    // 通知前端开始流式输出
+    // 🔥 修复：传递消息元数据
     this.emit('debate:stream:start', {
       model: model,
       timestamp: new Date().toISOString(),
+      ...messageMeta, // 包含 role, phase, round 等信息
     });
 
     try {
@@ -890,17 +948,19 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.65,
+        temperature: 0.3,  // 🔥 降低温度减少重复生成
         max_tokens: 3500,
-        top_p: 0.92,
-        presence_penalty: 0.3,
-        frequency_penalty: 0.2,
+        top_p: 0.85,      // 🔥 降低top_p使采样更集中
+        presence_penalty: 0.1,   // 🔥 降低减少重复
+        frequency_penalty: 0.15, // 🔥 降低减少重复
         stream: true, // 🔥 关键：启用流式输出
         signal: controller.signal,
       });
 
       let fullContent = '';
       let chunkCount = 0;
+      let lastChunkContent = '';  // 🔥 新增：记录上一块内容用于去重
+      const DUPLICATE_THRESHOLD = 0.85;  // 相似度阈值
 
       // 🔥 逐块读取流式数据
       for await (const chunk of stream) {
@@ -909,8 +969,22 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
           throw new Error('STREAM_CANCELLED');
         }
 
-        const content = chunk.choices[0]?.delta?.content || '';
+        let content = chunk.choices[0]?.delta?.content || '';
+
+        // 🔥 新增：去重检测 - 如果当前块与上一块高度相似（重复字符过多），跳过
+        if (content && lastChunkContent) {
+          // 检查是否有重复模式（如"的有有"）
+          const combined = lastChunkContent.slice(-10) + content.slice(0, 10);
+          // 如果新内容开始与旧的结束有超过3个连续相同字符，可能是重复
+          if (this.backtrackValidator.detectRepetition(content, lastChunkContent)) {
+            console.log(`[DebateEngine] ⚠️ 检测到重复内容，跳过: "${content.slice(0, 20)}..."`);
+            lastChunkContent = content.slice(-10);  // 更新最后内容
+            continue;
+          }
+        }
+
         if (content) {
+          lastChunkContent = content.slice(-10);  // 保留最后10个字符用于下次比较
           fullContent += content;
           chunkCount++;
 
@@ -928,6 +1002,9 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
           }
         }
       }
+
+      // 🔥 后处理：清理明显的重复模式
+      fullContent = this.backtrackValidator.cleanDuplicatePatterns(fullContent);
 
       clearTimeout(timeoutId);
       this._currentAbortController = null;
@@ -1494,6 +1571,35 @@ ${JSON.stringify(context.keyQuestions || [], null, 2)}
 
   buildResolutionPrompt(backtrackResult) {
     return `发现跨阶段矛盾，需要解决：\n\n${JSON.stringify(backtrackResult, null, 2)}\n\n请提出解决方案，确保所有承诺保持一致。`;
+  }
+
+  /**
+   * 🔥 新增：构建阶段探查 Prompt（修复缺失的方法）
+   * 用于辩论开始前的阶段探查，生成关键问题和框架
+   */
+  buildProbePrompt(phase) {
+    const keyQuestions = this.generateKeyQuestions(phase);
+    const successCriteria = this.generateSuccessCriteria(phase);
+
+    return `你现在处于**${phase.name}**阶段。
+
+## 阶段描述
+${phase.description}
+
+## 核心目标
+在这个阶段，我们需要明确：
+${keyQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+## 成功标准
+${successCriteria.map((c, i) => `✅ ${c}`).join('\n')}
+
+## 你的任务
+作为主持人，请引导辩论双方：
+1. 围绕上述核心问题展开深入讨论
+2. 确保每个问题都得到充分的正反论证
+3. 在阶段结束时达成共识
+
+请以主持人的身份，输出本阶段的**开场引导词**和**讨论框架**。`;
   }
 
   generateKeyQuestions(phase) {
@@ -2164,6 +2270,48 @@ class BacktrackValidator {
       .replace(/[^\u4e00-\u9fa5a-z0-9\s]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
+  }
+
+  // 🔥 新增：检测重复内容
+  detectRepetition(newContent, lastContent) {
+    if (!newContent || !lastContent) return false;
+
+    // 检查是否有超过3个连续重复的字符
+    const combined = lastContent.slice(-5) + newContent.slice(0, 5);
+    const charCount = {};
+    for (const char of combined) {
+      charCount[char] = (charCount[char] || 0) + 1;
+      if (charCount[char] >= 4) {  // 同一字符出现4次以上
+        return true;
+      }
+    }
+
+    // 检查是否有重复的2-3个字符的模式
+    for (let len = 2; len <= 3; len++) {
+      const last5 = lastContent.slice(-5);
+      const first5 = newContent.slice(0, 5);
+      for (let i = 0; i <= last5.length - len; i++) {
+        const pattern = last5.slice(i, i + len);
+        if (first5.includes(pattern + pattern)) {  // 模式重复出现
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  // 🔥 新增：后处理清理重复模式
+  cleanDuplicatePatterns(text) {
+    if (!text) return text;
+
+    // 清理连续重复超过2次的字符（如"的有有有" -> "的有"）
+    let result = text.replace(/(.)\1{2,}/g, '$1$1');
+
+    // 清理连续的词语重复（如"审查审查" -> "审查"）
+    result = result.replace(/(\S{2,})\1{2,}/g, '$1');
+
+    return result;
   }
 
   extractKeywords(text) {
