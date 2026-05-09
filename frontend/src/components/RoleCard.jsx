@@ -11,7 +11,7 @@ export default function RoleCard({ role, index }) {
   const roleColors = ['role-host', 'role-proposer', 'role-reviewer'];
   const colorClass = roleColors[index % roleColors.length];
 
-  const soulPresets = getSoulPresets(role.roleType || 'host');
+  const soulPresets = getSoulsByRoleType(role.roleType || 'host');
 
   const handleSelectPreset = (preset) => {
     applySoulPreset(role.id, preset);
