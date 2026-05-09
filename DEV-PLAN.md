@@ -112,7 +112,7 @@ git commit -m "chore: initialize project structure"
   "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 9516 --host",
+    "dev": "vite --port 9529 --host",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -143,7 +143,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 9516,
+    port: 9529,
     host: '0.0.0.0',
     proxy: {
       '/api': 'http://localhost:9528',
@@ -1385,7 +1385,7 @@ export default App;
 ```bash
 cd taolun-web/frontend && npm run dev
 ```
-Expected: Vite dev server running on port 9516
+Expected: Vite dev server running on port 9529
 
 - [ ] **Step 3: Commit**
 ```bash
@@ -1974,10 +1974,10 @@ echo   Taolun - PRD Debate Dashboard
 echo ==========================================
 echo.
 
-REM Check and kill processes on ports 9516 and 9528
+REM Check and kill processes on ports 9529 and 9528
 echo [1/4] Checking ports...
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :9516') do (
-    echo Killing process on port 9516 (PID: %%a)
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :9529') do (
+    echo Killing process on port 9529 (PID: %%a)
     taskkill /F /PID %%a >nul 2>&1
 )
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr :9528') do (
@@ -1997,12 +1997,12 @@ timeout /t 5 /nobreak >nul
 
 REM Open browser
 echo [4/4] Opening browser...
-start http://localhost:9516
+start http://localhost:9529
 
 echo.
 echo ==========================================
 echo   All services started!
-echo   Frontend: http://localhost:9516
+echo   Frontend: http://localhost:9529
 echo   Backend: http://localhost:9528
 echo ==========================================
 

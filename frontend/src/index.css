@@ -2,27 +2,591 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ========================================
+   小红书风格设计系统 (Xiaohongshu/RED Design System Inspired)
+   设计理念: 年轻、时尚、温暖、活力、社区感
+   参考: 小红书 (https://www.xiaohongshu.com)
+   ======================================== */
+
 @layer base {
-  body {
-    @apply bg-bg-primary text-text-primary font-sans;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  :root {
+    /* === 品牌色系 (小红书红为核心) === */
+    --brand-1: #FFF0F2;           /* 极浅红 - 背景 */
+    --brand-2: #FFD6DC;           /* 浅红 - 悬停 */
+    --brand-3: #FFB3C0;           /* 中浅红 */
+    --brand-4: #FF8FA3;           /* 中红 */
+    --brand-5: #FF2442;           /* 小红书品牌红 - 核心色 */
+    --brand-6: #E01E3C;           /* 深红 - 悬停 */
+    --brand-7: #C41835;           /* 更深红 - 按下 */
+    --brand-8: #A3132D;           /* 极深红 */
+    --brand-9: #800F24;           /* 最深红 */
+
+    /* === 中性色阶 (小红书暖灰系统) === */
+    --gray-1: #FBFBFB;            /* 页面背景 */
+    --gray-2: #F5F5F5;            /* 容器背景 */
+    --gray-3: #E8E8E8;            /* 边框 */
+    --gray-4: #D9D9D9;            /* 分割线 */
+    --gray-5: #BFBFBF;            /* 次要文本 */
+    --gray-6: #8C8C8C;            /* 占位文本 */
+    --gray-7: #595959;            /* 三级文本 */
+    --gray-8: #434343;            /* 二级文本 */
+    --gray-9: #262626;            /* 主要文本 */
+    --gray-10: #141414;           /* 最深文本 */
+    --gray-11: #000000;           /* 纯黑 */
+
+    /* === 语义色系统 === */
+    --success-1: #F6FFED;
+    --success-5: #52C41A;         /* 成功绿 */
+    
+    --warning-1: #FFFBE6;
+    --warning-5: #FAAD14;         /* 警告黄 */
+    
+    --error-1: #FFF2F0;
+    --error-5: #FF4D4F;           /* 错误红 */
+    
+    --info-1: #E6F7FF;
+    --info-5: #1890FF;            /* 信息蓝 */
+
+    /* === 背景系统 === */
+    --bg-page: #F5F5F5;           /* 页面背景 - 浅灰 */
+    --bg-container: #FFFFFF;      /* 容器背景 - 纯白 */
+    --bg-elevated: #FFFFFF;       /* 浮层背景 */
+    --bg-component: #F5F5F5;      /* 组件背景 */
+    --bg-component-hover: #E8E8E8;/* 组件悬停 */
+    --bg-sidebar: #FAFAFA;        /* 侧边栏背景 */
+
+    /* === 文本系统 === */
+    --text-primary: #262626;      /* 主要文本 */
+    --text-secondary: #595959;    /* 次要文本 */
+    --text-tertiary: #8C8C8C;     /* 三级文本 */
+    --text-placeholder: #BFBFBF;  /* 占位文本 */
+    --text-disabled: #D9D9D9;     /* 禁用文本 */
+    --text-link: #FF2442;         /* 链接文本 - 小红书红 */
+    --text-link-hover: #E01E3C;   /* 链接悬停 */
+
+    /* === 边框系统 === */
+    --border-1: #E8E8E8;          /* 常规边框 */
+    --border-2: #D9D9D9;          /* 强调边框 */
+    --border-3: #BFBFBF;          /* 分割线 */
+    --border-focus: #FF2442;      /* 聚焦边框 - 小红书红 */
+
+    /* === 阴影系统 (小红书风格 - 柔和温暖) === */
+    --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.06);           /* 卡片阴影 */
+    --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.08);          /* 浮层阴影 */
+    --shadow-3: 0 6px 16px rgba(0, 0, 0, 0.1);           /* 下拉阴影 */
+    --shadow-4: 0 8px 24px rgba(0, 0, 0, 0.12);          /* 弹窗阴影 */
+    --shadow-5: 0 12px 32px rgba(0, 0, 0, 0.15);         /* 全局阴影 */
+
+    /* === 圆角系统 (小红书风格 - 大圆角) === */
+    --radius-small: 6px;            /* 小圆角 (标签/徽章) */
+    --radius-medium: 12px;          /* 中圆角 (按钮/输入框) */
+    --radius-large: 16px;           /* 大圆角 (卡片) */
+    --radius-extra: 20px;           /* 超大圆角 (弹窗) */
+    --radius-round: 999px;          /* 胶囊圆角 */
+
+    /* === 间距系统 (4px基准) === */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    /* === 字体系统 === */
+    --font-size-h1: 28px;           /* 页面标题 */
+    --font-size-h2: 22px;           /* 模块标题 */
+    --font-size-h3: 18px;           /* 卡片标题 */
+    --font-size-h4: 16px;           /* 段落标题 */
+    --font-size-body: 14px;         /* 正文 */
+    --font-size-small: 13px;        /* 辅助文本 */
+    --font-size-extra: 12px;        /* 极小文本 */
+
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    --line-height-1: 1.4;
+    --line-height-2: 1.5;
+    --line-height-3: 1.6;
+
+    /* === 动画系统 (小红书风格 - 活泼轻快) === */
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 350ms;
+    --easing-ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --easing-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* === 毛玻璃效果 (小红书风格 - 柔和通透) === */
+    --glass-blur: 12px;
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(232, 232, 232, 0.5);
+    --glass-shadow: var(--shadow-2);
+
+    /* === 角色色彩 (小红书风格) === */
+    --role-host: #FF2442;           /* 主持人 - 小红书红 */
+    --role-proposer: #FF6B8A;       /* 提案者 - 粉红 */
+    --role-reviewer: #FAAD14;       /* 审查者 - 温暖黄 */
+    --role-system: #8C8C8C;         /* 系统 - 中性灰 */
   }
-  
+
+  /* === 深色模式 (小红书 Dark Mode) === */
+  .dark {
+    --bg-page: #0A0A0A;
+    --bg-container: #141414;
+    --bg-elevated: #1F1F1F;
+    --bg-component: #262626;
+    --bg-component-hover: #434343;
+    --bg-sidebar: #0F0F0F;
+
+    --text-primary: #F5F5F5;
+    --text-secondary: #BFBFBF;
+    --text-tertiary: #8C8C8C;
+    --text-placeholder: #595959;
+    --text-disabled: #434343;
+    --text-link: #FF6B8A;
+    --text-link-hover: #FF8FA3;
+
+    --border-1: #262626;
+    --border-2: #434343;
+    --border-3: #595959;
+
+    --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-3: 0 6px 16px rgba(0, 0, 0, 0.6);
+    --shadow-4: 0 8px 24px rgba(0, 0, 0, 0.7);
+    --shadow-5: 0 12px 32px rgba(0, 0, 0, 0.8);
+
+    --glass-bg: rgba(20, 20, 20, 0.85);
+    --glass-border: rgba(38, 38, 38, 0.5);
+  }
+
+  /* === 全局基础样式 === */
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-size: var(--font-size-body);
+    line-height: var(--line-height-2);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* === 自定义滚动条 (小红书风格 - 圆润) === */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   
   ::-webkit-scrollbar-track {
-    background: #1A1D24;
+    background: transparent;
   }
   
   ::-webkit-scrollbar-thumb {
-    background: #3B82F6;
-    border-radius: 3px;
+    background: var(--gray-4);
+    border-radius: var(--radius-round);
+    
+    &:hover {
+      background: var(--gray-5);
+    }
+  }
+
+  /* === 选择文本样式 === */
+  ::selection {
+    background: var(--brand-1);
+    color: var(--brand-9);
+  }
+}
+
+/* ========================================
+   小红书风格组件库
+   ======================================== */
+
+@layer components {
+  /* === 按钮系统 === */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    height: 40px;
+    padding: 0 var(--space-5);
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
+    border-radius: var(--radius-medium);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--easing-ease);
+    user-select: none;
+    white-space: nowrap;
+    
+    &:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--bg-container), 0 0 0 4px var(--brand-3);
+    }
+    
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+  }
+
+  /* 主要按钮 - 小红书红 */
+  .btn-primary {
+    background: var(--brand-5);
+    color: #FFFFFF;
+    border-color: var(--brand-5);
+    
+    &:hover:not(:disabled) {
+      background: var(--brand-6);
+      border-color: var(--brand-6);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-2);
+    }
+    
+    &:active:not(:disabled) {
+      background: var(--brand-7);
+      border-color: var(--brand-7);
+      transform: translateY(0);
+    }
+  }
+
+  /* 次要按钮 */
+  .btn-secondary {
+    background: var(--bg-container);
+    color: var(--text-primary);
+    border-color: var(--border-1);
+    
+    &:hover:not(:disabled) {
+      background: var(--bg-component);
+      border-color: var(--border-2);
+    }
+    
+    &:active:not(:disabled) {
+      background: var(--bg-component-hover);
+      border-color: var(--border-3);
+    }
+  }
+
+  /* 文字按钮 */
+  .btn-text {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    padding: 0 var(--space-2);
+    height: auto;
+    
+    &:hover:not(:disabled) {
+      background: var(--bg-component);
+      color: var(--text-primary);
+    }
+  }
+
+  /* 危险按钮 */
+  .btn-danger {
+    background: var(--error-5);
+    color: #FFFFFF;
+    border-color: var(--error-5);
+    
+    &:hover:not(:disabled) {
+      background: #FF7875;
+      border-color: #FF7875;
+    }
+  }
+
+  /* 幽灵按钮 - 小红书风格 */
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-primary);
+    border: none;
+    
+    &:hover:not(:disabled) {
+      background: var(--bg-component);
+    }
+  }
+
+  /* 按钮尺寸 */
+  .btn-sm {
+    height: 32px;
+    padding: 0 var(--space-3);
+    font-size: var(--font-size-small);
+  }
+
+  .btn-lg {
+    height: 48px;
+    padding: 0 var(--space-6);
+    font-size: var(--font-size-h4);
+  }
+
+  /* === 输入框系统 === */
+  .input {
+    width: 100%;
+    height: 40px;
+    padding: 0 var(--space-4);
+    font-size: var(--font-size-body);
+    line-height: var(--line-height-1);
+    color: var(--text-primary);
+    background: var(--bg-container);
+    border: 1px solid var(--border-1);
+    border-radius: var(--radius-medium);
+    transition: all var(--duration-normal) var(--easing-ease);
+    
+    &::placeholder {
+      color: var(--text-placeholder);
+    }
+    
+    &:hover:not(:disabled):not(:focus) {
+      border-color: var(--border-2);
+    }
+    
+    &:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(255, 36, 66, 0.1);
+    }
+    
+    &:disabled {
+      background: var(--bg-component);
+      color: var(--text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .input-sm {
+    height: 32px;
+    font-size: var(--font-size-small);
+  }
+
+  .input-lg {
+    height: 48px;
+    font-size: var(--font-size-h4);
+  }
+
+  textarea.input {
+    height: auto;
+    padding: var(--space-4);
+    resize: vertical;
+  }
+
+  /* === 卡片系统 (小红书风格 - 大圆角+柔和阴影) === */
+  .card {
+    background: var(--bg-container);
+    border: 1px solid var(--border-1);
+    border-radius: var(--radius-large);
+    box-shadow: var(--shadow-1);
+    transition: all var(--duration-slow) var(--easing-ease);
+    
+    &:hover {
+      box-shadow: var(--shadow-2);
+      border-color: var(--border-2);
+    }
+  }
+
+  .card-hoverable {
+    cursor: pointer;
+    
+    &:hover {
+      box-shadow: var(--shadow-3);
+      transform: translateY(-2px);
+    }
+  }
+
+  /* === 导航栏 (小红书风格) === */
+  .header {
+    height: 56px;
+    background: var(--bg-container);
+    border-bottom: 1px solid var(--border-1);
+    box-shadow: var(--shadow-1);
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-6);
+  }
+
+  /* === 侧边栏 === */
+  .sidebar {
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border-1);
+    overflow-y: auto;
+  }
+
+  /* === 标签/徽章 (小红书风格 - 圆润可爱) === */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 26px;
+    padding: 0 var(--space-3);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-medium);
+    border-radius: var(--radius-round);
+    line-height: 1;
+  }
+
+  .tag-default {
+    background: var(--bg-component);
+    color: var(--text-secondary);
+  }
+
+  .tag-primary {
+    background: var(--brand-1);
+    color: var(--brand-6);
+  }
+
+  .tag-success {
+    background: var(--success-1);
+    color: var(--success-5);
+  }
+
+  .tag-warning {
+    background: var(--warning-1);
+    color: var(--warning-5);
+  }
+
+  .tag-error {
+    background: var(--error-1);
+    color: var(--error-5);
+  }
+
+  /* === 角色标签 (小红书风格 - 彩色胶囊) === */
+  .role-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 28px;
+    padding: 0 var(--space-4);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-medium);
+    border-radius: var(--radius-round);
+    line-height: 1;
+  }
+
+  .role-host {
+    background: var(--brand-1);
+    color: var(--brand-6);
+  }
+
+  .role-proposer {
+    background: #FFF0F5;
+    color: #FF6B8A;
+  }
+
+  .role-reviewer {
+    background: var(--warning-1);
+    color: var(--warning-5);
+  }
+
+  .role-system {
+    background: var(--bg-component);
+    color: var(--text-secondary);
+  }
+
+  /* === 分割线 === */
+  .divider {
+    height: 1px;
+    background: var(--border-1);
+    margin: var(--space-4) 0;
+  }
+
+  /* === 状态指示器 === */
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    
+    &.status-success {
+      background: var(--success-5);
+    }
+    
+    &.status-warning {
+      background: var(--warning-5);
+    }
+    
+    &.status-error {
+      background: var(--error-5);
+    }
+    
+    &.status-processing {
+      background: var(--brand-5);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* === 毛玻璃效果 (小红书风格 - 柔和通透) === */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: var(--radius-extra);
+  }
+
+  /* === 加载状态 === */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--bg-component) 25%,
+      var(--bg-component-hover) 50%,
+      var(--bg-component) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton 1.5s ease-in-out infinite;
+    border-radius: var(--radius-medium);
+  }
+
+  @keyframes skeleton {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+}
+
+/* ========================================
+   动画与微交互
+   ======================================== */
+
+@layer utilities {
+  /* === 焦点指示器 (小红书风格) === */
+  .focus-ring {
+    &:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--bg-container), 0 0 0 4px var(--brand-3);
+    }
+  }
+
+  /* === 减少动画偏好 === */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ========================================
+   响应式优化
+   ======================================== */
+
+@media (max-width: 768px) {
+  :root {
+    --space-6: 16px;
   }
   
-  ::-webkit-scrollbar-thumb:hover {
-    background: #60A5FA;
+  .header {
+    height: 52px;
+    padding: 0 var(--space-4);
   }
 }

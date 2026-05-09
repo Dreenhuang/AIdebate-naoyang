@@ -119,7 +119,7 @@
 ### 4.2 端口分配
 | 服务 | 端口 | 说明 |
 |------|------|------|
-| 前端开发服务器 | 9516 | Vite dev server |
+| 前端开发服务器 | 9529 | Vite dev server |
 | 后端 API | 9528 | Express + WebSocket |
 | Nginx HTTP | 80 | 生产环境入口 |
 | Nginx HTTPS | 443 | 生产环境安全入口 |

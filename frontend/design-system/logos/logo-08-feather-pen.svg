@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="penGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0F172A"/>
+      <stop offset="100%" style="stop-color:#334155"/>
+    </linearGradient>
+    <linearGradient id="featherGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#F59E0B"/>
+      <stop offset="50%" style="stop-color:#FBBF24"/>
+      <stop offset="100%" style="stop-color:#FCD34D"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Feather Quill -->
+  <g transform="rotate(-45, 64, 64)">
+    <!-- Quill shaft -->
+    <path d="M64 8 C64 8 60 64 60 100 L68 100 C68 64 64 8 64 8" fill="url(#penGrad)"/>
+    
+    <!-- Feather barbs -->
+    <g fill="url(#featherGrad)">
+      <!-- Left barbs -->
+      <path d="M60 20 Q40 24 32 32 Q40 28 60 26" opacity="0.9"/>
+      <path d="M60 32 Q36 38 28 48 Q38 42 60 38" opacity="0.85"/>
+      <path d="M60 44 Q34 52 26 64 Q36 56 60 50" opacity="0.8"/>
+      <path d="M60 56 Q32 66 28 80 Q38 70 60 62" opacity="0.75"/>
+      <path d="M60 68 Q34 80 32 96 Q40 86 60 74" opacity="0.7"/>
+      
+      <!-- Right barbs -->
+      <path d="M68 20 Q88 24 96 32 Q88 28 68 26" opacity="0.9"/>
+      <path d="M68 32 Q92 38 100 48 Q92 42 68 38" opacity="0.85"/>
+      <path d="M68 44 Q94 52 102 64 Q94 56 68 50" opacity="0.8"/>
+      <path d="M68 56 Q96 66 100 80 Q92 70 68 62" opacity="0.75"/>
+      <path d="M68 68 Q96 80 100 96 Q92 86 68 74" opacity="0.7"/>
+    </g>
+    
+    <!-- Quill tip (nib) -->
+    <path d="M64 100 L60 120 L64 116 L68 120 Z" fill="#334155"/>
+    <path d="M62 116 L64 108 L66 116" fill="#1E293B"/>
+  </g>
+  
+  <!-- Brain Icon (small, as if written/drawn) -->
+  <g transform="translate(76, 16)">
+    <path d="M12 2 C6 2 2 6 2 12 C2 18 6 22 12 22 C16 22 18 24 18 28 C18 32 20 32 22 28 C24 24 28 22 32 22 C38 22 42 18 42 12 C42 6 36 2 32 2" 
+          stroke="#0F172A" stroke-width="2" fill="none"/>
+    <path d="M8 8 Q12 12 8 18" stroke="#0F172A" stroke-width="1.5" fill="none" opacity="0.6"/>
+    <path d="M26 8 Q22 12 26 18" stroke="#0F172A" stroke-width="1.5" fill="none" opacity="0.6"/>
+  </g>
+  
+  <!-- Itch marks (thought sparks flying off) -->
+  <g stroke="#8B5CF6" stroke-width="2" stroke-linecap="round">
+    <line x1="20" y1="40" x2="12" y2="32"/>
+    <line x1="16" y1="48" x2="6" y2="46"/>
+    <line x1="24" y1="56" x2="14" y2="60"/>
+    <line x1="16" y1="24" x2="10" y2="16"/>
+  </g>
+</svg>

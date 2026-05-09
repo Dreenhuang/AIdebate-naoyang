@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="gridGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1E40AF"/>
+      <stop offset="100%" style="stop-color:#3B82F6"/>
+    </linearGradient>
+    <pattern id="techGrid" width="16" height="16" patternUnits="userSpaceOnUse">
+      <path d="M16 0 L0 0 L0 16" fill="none" stroke="#60A5FA" stroke-width="0.5" opacity="0.3"/>
+    </pattern>
+  </defs>
+  
+  <!-- Background Grid Circle -->
+  <circle cx="64" cy="64" r="56" fill="url(#gridGrad)" opacity="0.1"/>
+  <circle cx="64" cy="64" r="56" fill="url(#techGrid)"/>
+  
+  <!-- Tech-style Brain -->
+  <g>
+    <!-- Brain outline with tech segments -->
+    <path d="M64 20 C44 20 32 32 32 48 C32 60 40 68 48 72 L48 80 L64 80 L80 80 L80 72 C88 68 96 60 96 48 C96 32 84 20 64 20" 
+          stroke="#3B82F6" stroke-width="2.5" fill="none"/>
+    
+    <!-- Grid lines inside brain -->
+    <g stroke="#60A5FA" stroke-width="1" opacity="0.5">
+      <line x1="40" y1="36" x2="88" y2="36"/>
+      <line x1="36" y1="48" x2="92" y2="48"/>
+      <line x1="40" y1="60" x2="88" y2="60"/>
+      <line x1="48" y1="32" x2="48" y2="68"/>
+      <line x1="64" y1="28" x2="64" y2="72"/>
+      <line x1="80" y1="32" x2="80" y2="68"/>
+    </g>
+    
+    <!-- Brain wrinkle details -->
+    <path d="M44 40 Q52 44 48 52 Q44 60 52 64" stroke="#93C5FD" stroke-width="2" fill="none"/>
+    <path d="M84 40 Q76 44 80 52 Q84 60 76 64" stroke="#93C5FD" stroke-width="2" fill="none"/>
+    
+    <!-- Connection dots -->
+    <g fill="#60A5FA">
+      <circle cx="40" cy="36" r="2"/>
+      <circle cx="64" cy="32" r="3"/>
+      <circle cx="88" cy="36" r="2"/>
+      <circle cx="36" cy="48" r="2"/>
+      <circle cx="64" cy="48" r="4"/>
+      <circle cx="92" cy="48" r="2"/>
+      <circle cx="48" cy="64" r="2"/>
+      <circle cx="64" cy="68" r="3"/>
+      <circle cx="80" cy="64" r="2"/>
+    </g>
+  </g>
+  
+  <!-- Tech-style Itch Marks -->
+  <g stroke="#F97316" stroke-width="2" stroke-linecap="round">
+    <line x1="20" y1="28" x2="12" y2="20"/>
+    <line x1="16" y1="36" x2="8" y2="32"/>
+    <line x1="108" y1="28" x2="116" y2="20"/>
+    <line x1="112" y1="36" x2="120" y2="32"/>
+    <line x1="24" y1="100" x2="16" y2="108"/>
+    <line x1="104" y1="100" x2="112" y2="108"/>
+  </g>
+  
+  <!-- Corner accents -->
+  <g stroke="#3B82F6" stroke-width="1.5" fill="none" opacity="0.6">
+    <path d="M8 48 L8 40 L16 40"/>
+    <path d="M120 48 L120 40 L112 40"/>
+    <path d="M8 80 L8 88 L16 88"/>
+    <path d="M120 80 L120 88 L112 88"/>
+  </g>
+</svg>

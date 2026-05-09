@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="lightningGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FBBF24"/>
+      <stop offset="100%" style="stop-color:#F97316"/>
+    </linearGradient>
+    <linearGradient id="brainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6"/>
+      <stop offset="100%" style="stop-color:#8B5CF6"/>
+    </linearGradient>
+    <filter id="boltGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background glow -->
+  <circle cx="64" cy="64" r="48" fill="#FBBF24" opacity="0.15"/>
+  
+  <!-- Brain shape (half visible, half electrical) -->
+  <g>
+    <!-- Brain base -->
+    <path d="M64 20 C40 20 28 36 28 52 C28 68 36 76 36 76 C36 76 28 84 28 92 C28 108 44 116 64 116 C84 116 100 108 100 92 C100 84 92 76 92 76 C92 76 100 68 100 52 C100 36 88 20 64 20" 
+          fill="url(#brainGrad)" opacity="0.9"/>
+    
+    <!-- Brain wrinkles -->
+    <g stroke="white" stroke-width="2" fill="none" opacity="0.3">
+      <path d="M44 44 Q52 48 48 58 Q44 68 52 72"/>
+      <path d="M84 44 Q76 48 80 58 Q84 68 76 72"/>
+      <path d="M64 32 Q64 48 64 64 Q64 80 64 96"/>
+    </g>
+  </g>
+  
+  <!-- Lightning bolt cutting through -->
+  <g filter="url(#boltGlow)">
+    <path d="M72 16 L52 56 L68 56 L48 96 L88 48 L68 48 L88 16 Z" 
+          fill="url(#lightningGrad)" stroke="white" stroke-width="1"/>
+  </g>
+  
+  <!-- Itch/energy sparks -->
+  <g stroke="#EC4899" stroke-width="2" stroke-linecap="round">
+    <line x1="20" y1="32" x2="12" y2="24"/>
+    <line x1="16" y1="40" x2="6" y2="38"/>
+    <line x1="108" y1="96" x2="116" y2="104"/>
+    <line x1="112" y1="88" x2="122" y2="88"/>
+    <line x1="24" y1="108" x2="18" y2="116"/>
+    <line x1="104" y1="108" x2="110" y2="116"/>
+  </g>
+</svg>

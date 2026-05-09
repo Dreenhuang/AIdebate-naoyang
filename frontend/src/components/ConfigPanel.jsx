@@ -1,48 +1,82 @@
-import { Play, Square, RotateCcw, Plus, Target, Settings } from 'lucide-react';
+import { Play, Square, RotateCcw, Plus, Target, Settings, Wifi, WifiOff, Shuffle, Sparkles } from 'lucide-react';
 import { useDebateStore } from '../stores/debateStore';
 import RoleCard from './RoleCard';
+import DocumentUpload from './DocumentUpload';
 
 export default function ConfigPanel({ onStart, onStop, onReset }) {
-  const { config, updateConfig, addRole, debateStatus } = useDebateStore();
+  const { config, updateConfig, addRole, debateStatus, wsConnected, wsReconnecting, randomizeAllSouls, sidebarCollapsed, toggleSidebar, uploadedDoc } = useDebateStore();
+
+  if (sidebarCollapsed) {
+    return (
+      <button
+        onClick={toggleSidebar}
+        className="fixed left-0 top-1/2 -translate-y-1/2 z-20 p-3 bg-gray-2 border border-gray-3 border-l-0 rounded-r-lg shadow-3 hover:shadow-4 transition-all text-gray-8 hover:text-brand-5 focus-ring"
+        title="展开配置面板"
+      >
+        <Settings className="w-5 h-5" />
+      </button>
+    );
+  }
 
   return (
-    <div className="w-[320px] bg-bg-secondary border-r border-border-primary flex flex-col h-full">
-      <div className="p-4 border-b border-border-primary">
-        <div className="flex items-center gap-2 mb-4">
-          <Settings className="w-5 h-5 text-brand-primary" />
-          <h2 className="font-semibold">配置面板</h2>
+    <div className="w-[320px] bg-gray-1 flex flex-col h-full border-r border-gray-3">
+      <div className="p-4 border-b border-gray-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Settings className="w-5 h-5 text-brand-5" />
+            <h2 className="text-h4 font-semibold text-gray-9">配置面板</h2>
+          </div>
+          <button
+            onClick={toggleSidebar}
+            className="p-2 hover:bg-gray-2 rounded-md transition-colors text-gray-7 focus-ring"
+            title="收起配置面板"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
         </div>
       </div>
       
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* 话题输入 */}
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Target className="w-4 h-4 text-text-muted" />
-            <label className="text-sm font-medium">讨论话题</label>
+          <div className="flex items-center gap-2 mb-3">
+            <Target className="w-4 h-4 text-gray-7" />
+            <label className="text-body font-medium text-gray-9">讨论话题</label>
           </div>
           <textarea
             value={config.topic}
             onChange={(e) => updateConfig({ topic: e.target.value })}
-            className="w-full bg-bg-tertiary border border-border-primary rounded-lg px-3 py-2 text-sm focus:border-border-focus focus:outline-none resize-none"
+            className="input"
             rows={3}
-            placeholder="输入讨论话题，例如：AI会取代人类的工作吗？"
+            placeholder="输入讨论话题,例如:AI会取代人类的工作吗?"
           />
         </div>
 
-        {/* 角色配置 */}
+        <DocumentUpload />
+
         <div>
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium">角色配置 ({config.roles.length}/5)</span>
-            {config.roles.length < 5 && (
-              <button
-                onClick={addRole}
-                className="flex items-center gap-1 text-xs text-brand-primary hover:text-brand-primary/80 transition-colors"
-              >
-                <Plus className="w-3 h-3" />
-                添加角色
-              </button>
-            )}
+            <span className="text-body font-medium text-gray-9">角色配置 ({config.roles.length}/5)</span>
+            <div className="flex items-center gap-2">
+              {config.roles.length >= 2 && (
+                <button
+                  onClick={randomizeAllSouls}
+                  className="text-small text-success-5 hover:text-success-6 transition-colors focus-ring"
+                  title="随机分配所有角色的Soul"
+                >
+                  <Shuffle className="w-3 h-3 inline mr-1" />
+                  随机Soul
+                </button>
+              )}
+              {config.roles.length < 5 && (
+                <button
+                  onClick={addRole}
+                  className="text-small text-brand-5 hover:text-brand-6 transition-colors focus-ring"
+                >
+                  <Plus className="w-3 h-3 inline mr-1" />
+                  添加角色
+                </button>
+              )}
+            </div>
           </div>
           <div className="space-y-2">
             {config.roles.map((role, index) => (
@@ -51,47 +85,59 @@ export default function ConfigPanel({ onStart, onStop, onReset }) {
           </div>
         </div>
 
-        {/* 轮数设置 */}
-        <div>
-          <label className="text-sm font-medium mb-2 block">每阶段轮数: {config.roundsPerPhase}</label>
+        <div className="bg-gray-2 rounded-lg p-4 border border-gray-3">
+          <label className="text-body font-medium text-gray-9 mb-3 block">
+            每阶段轮数: <span className="text-brand-5 font-semibold">{config.roundsPerPhase}</span>
+          </label>
           <input
             type="range"
             min={1}
             max={10}
             value={config.roundsPerPhase}
             onChange={(e) => updateConfig({ roundsPerPhase: parseInt(e.target.value) })}
-            className="w-full accent-brand-primary"
+            className="w-full h-2 bg-gray-3 rounded-full appearance-none cursor-pointer accent-brand-5"
           />
-          <div className="flex justify-between text-xs text-text-muted mt-1">
+          <div className="flex justify-between text-small text-gray-6 mt-2">
             <span>1</span>
             <span>10</span>
           </div>
         </div>
 
-        {/* 阶段设置 */}
-        <div>
-          <label className="text-sm font-medium mb-2 block">总阶段数: {config.totalPhases}</label>
+        <div className="bg-gray-2 rounded-lg p-4 border border-gray-3">
+          <label className="text-body font-medium text-gray-9 mb-3 block">
+            总阶段数: <span className="text-brand-5 font-semibold">{config.totalPhases}</span>
+          </label>
           <input
             type="range"
             min={1}
             max={5}
             value={config.totalPhases}
             onChange={(e) => updateConfig({ totalPhases: parseInt(e.target.value) })}
-            className="w-full accent-brand-primary"
+            className="w-full h-2 bg-gray-3 rounded-full appearance-none cursor-pointer accent-brand-5"
           />
-          <div className="flex justify-between text-xs text-text-muted mt-1">
+          <div className="flex justify-between text-small text-gray-6 mt-2">
             <span>1</span>
             <span>5</span>
           </div>
         </div>
       </div>
 
-      {/* 控制按钮 */}
-      <div className="p-4 border-t border-border-primary space-y-2">
+      {!wsConnected && (
+        <div className="px-4 py-3 bg-warning-1 border-t border-warning-5/20">
+          <div className="flex items-center gap-2 text-small text-warning-5">
+            <WifiOff className="w-3.5 h-3.5" />
+            <span>
+              {wsReconnecting ? '正在重新连接服务器...' : '服务器未连接，请检查后端服务是否启动'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className="p-4 border-t border-gray-3 space-y-2">
         {debateStatus === 'running' ? (
           <button
             onClick={onStop}
-            className="w-full flex items-center justify-center gap-2 bg-error hover:bg-error/90 text-white py-2.5 rounded-lg font-medium transition-colors"
+            className="btn btn-danger w-full"
           >
             <Square className="w-4 h-4" />
             停止辩论
@@ -99,8 +145,8 @@ export default function ConfigPanel({ onStart, onStop, onReset }) {
         ) : (
           <button
             onClick={onStart}
-            disabled={!config.topic || debateStatus === 'completed'}
-            className="w-full flex items-center justify-center gap-2 bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2.5 rounded-lg font-medium transition-colors"
+            disabled={!config.topic || debateStatus === 'completed' || !wsConnected}
+            className="btn btn-primary w-full"
           >
             <Play className="w-4 h-4" />
             开始辩论
@@ -109,7 +155,7 @@ export default function ConfigPanel({ onStart, onStop, onReset }) {
         
         <button
           onClick={onReset}
-          className="w-full flex items-center justify-center gap-2 bg-bg-tertiary hover:bg-bg-hover border border-border-primary text-text-secondary py-2 rounded-lg text-sm transition-colors"
+          className="btn btn-secondary w-full"
         >
           <RotateCcw className="w-4 h-4" />
           重置

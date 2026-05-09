@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>脑痒 - 设计系统展示</title>
+  <link href="https://cdn.tailwindcss.com" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0f1117;
+      --bg-secondary: #1a1d24;
+      --bg-tertiary: #252830;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border-primary: #2a2e3a;
+      --brand-primary: #3b82f6;
+      --brand-secondary: #8b5cf6;
+      --brand-accent: #06b6d4;
+    }
+    
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, sans-serif;
+    }
+    
+    .card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+      border-color: var(--brand-primary);
+      transform: translateY(-4px);
+    }
+    
+    .color-swatch {
+      width: 100%;
+      height: 80px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .logo-item {
+      background-color: var(--bg-tertiary);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .logo-item img {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 12px;
+    }
+    
+    .tab-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+    
+    .tab-btn:hover {
+      background-color: var(--bg-tertiary);
+    }
+    
+    .tab-btn.active {
+      background-color: var(--brand-primary);
+      color: white;
+    }
+    
+    .code-block {
+      background-color: #000;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-8">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <header class="text-center mb-16">
+      <h1 class="text-4xl font-bold mb-4">脑痒 设计系统</h1>
+      <p class="text-xl text-gray-400">脑痒是长脑子的前兆</p>
+      <p class="text-sm text-gray-500 mt-2">UI Design System v1.0 - 2026.05.09</p>
+    </header>
+    
+    <!-- Tab Navigation -->
+    <nav class="flex gap-2 mb-12 justify-center">
+      <button class="tab-btn active" onclick="showSection('colors')">配色方案</button>
+      <button class="tab-btn" onclick="showSection('logos')">Logo 设计</button>
+      <button class="tab-btn" onclick="showSection('tokens')">设计令牌</button>
+      <button class="tab-btn" onclick="showSection('usage')">使用指南</button>
+    </nav>
+    
+    <!-- Section: Color Palettes -->
+    <section id="colors" class="mb-16">
+      <h2 class="text-2xl font-semibold mb-8">🎨 配色方案</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Scheme 1: Tech Blue-Purple -->
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">科技蓝紫</h3>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6);"></div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">主色</span><span class="font-mono">#3B82F6</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">辅色</span><span class="font-mono">#8B5CF6</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">强调</span><span class="font-mono">#06B6D4</span></div>
+          </div>
+        </div>
+        
+        <!-- Scheme 2: Energetic Orange -->
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">活力橙</h3>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #f97316, #fbbf24);"></div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">主色</span><span class="font-mono">#F97316</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">辅色</span><span class="font-mono">#FBBF24</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">强调</span><span class="font-mono">#0D9488</span></div>
+          </div>
+        </div>
+        
+        <!-- Scheme 3: Natural Green -->
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">自然绿</h3>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #10b981, #059669);"></div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">主色</span><span class="font-mono">#10B981</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">辅色</span><span class="font-mono">#0EA5E9</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">强调</span><span class="font-mono">#6366F1</span></div>
+          </div>
+        </div>
+        
+        <!-- Scheme 4: Mystical Purple -->
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">神秘紫</h3>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #7c3aed, #ec4899);"></div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">主色</span><span class="font-mono">#7C3AED</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">辅色</span><span class="font-mono">#EC4899</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">强调</span><span class="font-mono">#06B6D4</span></div>
+          </div>
+        </div>
+        
+        <!-- Scheme 5: Minimalist B&W -->
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">极简黑白</h3>
+          <div class="color-swatch bg-gray-900 border border-gray-700"></div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">主色</span><span class="font-mono">#000000</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">辅色</span><span class="font-mono">#6B7280</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">强调</span><span class="font-mono">#2563EB</span></div>
+          </div>
+        </div>
+        
+        <!-- Scheme 6: Warm Gold -->
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">暖阳金</h3>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #f59e0b, #fcd34d);"></div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">主色</span><span class="font-mono">#F59E0B</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">辅色</span><span class="font-mono">#1E40AF</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">强调</span><span class="font-mono">#EA580C</span></div>
+          </div>
+        </div>
+        
+        <!-- Scheme 7: Fresh Teal -->
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">清新青</h3>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #14b8a6, #2dd4bf);"></div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">主色</span><span class="font-mono">#14B8A6</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">辅色</span><span class="font-mono">#3B82F6</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">强调</span><span class="font-mono">#EAB308</span></div>
+          </div>
+        </div>
+        
+        <!-- Scheme 8: Passionate Red -->
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">热情红</h3>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #ef4444, #f87171);"></div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">主色</span><span class="font-mono">#EF4444</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">辅色</span><span class="font-mono">#2563EB</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">强调</span><span class="font-mono">#F59E0B</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Section: Logos -->
+    <section id="logos" class="mb-16 hidden">
+      <h2 class="text-2xl font-semibold mb-8">🎨 Logo 设计</h2>
+      
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-6">
+        <div class="logo-item">
+          <img src="/brain-itch-logo.svg" alt="Logo 1">
+          <p class="text-sm text-gray-400">脑痒Logo</p>
+          <p class="text-xs text-gray-500">当前已部署</p>
+        </div>
+        <div class="logo-item">
+          <img src="/design-system/logos/logo-02-bulb-idea.svg" alt="Logo 2">
+          <p class="text-sm text-gray-400">灵感灯泡</p>
+          <p class="text-xs text-gray-500">创意场景</p>
+        </div>
+        <div class="logo-item">
+          <img src="/design-system/logos/logo-03-chat-brain.svg" alt="Logo 3">
+          <p class="text-sm text-gray-400">对话大脑</p>
+          <p class="text-xs text-gray-500">讨论辩论</p>
+        </div>
+        <div class="logo-item">
+          <img src="/design-system/logos/logo-04-neural-network.svg" alt="Logo 4">
+          <p class="text-sm text-gray-400">神经网络</p>
+          <p class="text-xs text-gray-500">AI智能</p>
+        </div>
+        <div class="logo-item">
+          <img src="/design-system/logos/logo-05-book-brain.svg" alt="Logo 5">
+          <p class="text-sm text-gray-400">智慧之书</p>
+          <p class="text-xs text-gray-500">知识管理</p>
+        </div>
+        <div class="logo-item">
+          <img src="/design-system/logos/logo-06-abstract-brain.svg" alt="Logo 6">
+          <p class="text-sm text-gray-400">抽象大脑</p>
+          <p class="text-xs text-gray-500">现代科技</p>
+        </div>
+        <div class="logo-item">
+          <img src="/design-system/logos/logo-07-tech-grid.svg" alt="Logo 7">
+          <p class="text-sm text-gray-400">科技网格</p>
+          <p class="text-xs text-gray-500">技术氛围</p>
+        </div>
+        <div class="logo-item">
+          <img src="/design-system/logos/logo-08-feather-pen.svg" alt="Logo 8">
+          <p class="text-sm text-gray-400">羽毛笔</p>
+          <p class="text-xs text-gray-500">写作创作</p>
+        </div>
+        <div class="logo-item">
+          <img src="/design-system/logos/logo-09-lightning-brain.svg" alt="Logo 9">
+          <p class="text-sm text-gray-400">闪电大脑</p>
+          <p class="text-xs text-gray-500">快速思考</p>
+        </div>
+        <div class="logo-item">
+          <img src="/design-system/logos/logo-10-focus-target.svg" alt="Logo 10">
+          <p class="text-sm text-gray-400">聚焦目标</p>
+          <p class="text-xs text-gray-500">精准分析</p>
+        </div>
+      </div>
+      
+      <h3 class="text-xl font-medium mt-12 mb-6">Logo 变体</h3>
+      <div class="grid grid-cols-3 gap-6">
+        <div class="card text-center">
+          <img src="/brain-itch-logo.svg" alt="Standard" class="w-24 h-24 mx-auto mb-4">
+          <p class="text-sm font-medium">标准版</p>
+          <p class="text-xs text-gray-500">完整渐变效果</p>
+        </div>
+        <div class="card text-center">
+          <img src="/brain-itch-logo-simple.svg" alt="Simple" class="w-24 h-24 mx-auto mb-4">
+          <p class="text-sm font-medium">简化版</p>
+          <p class="text-xs text-gray-500">精简轮廓</p>
+        </div>
+        <div class="card text-center bg-gray-900">
+          <img src="/brain-itch-logo-mono.svg" alt="Mono" class="w-24 h-24 mx-auto mb-4">
+          <p class="text-sm font-medium">单色版</p>
+          <p class="text-xs text-gray-500">白色线条</p>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Section: Design Tokens -->
+    <section id="tokens" class="mb-16 hidden">
+      <h2 class="text-2xl font-semibold mb-8">📋 设计令牌</h2>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">颜色令牌</h3>
+          <div class="code-block text-green-400">
+--color-primary: #3B82F6<br>
+--color-primary-hover: #60A5FA<br>
+--color-primary-active: #1D4ED8<br>
+--color-secondary: #8B5CF6<br>
+--color-accent: #06B6D4<br>
+--color-success: #10B981<br>
+--color-warning: #F59E0B<br>
+--color-error: #EF4444<br>
+--bg-primary: #0F1117<br>
+--bg-secondary: #1A1D24<br>
+--text-primary: #F1F5F9<br>
+--text-secondary: #94A3B8<br>
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">字体令牌</h3>
+          <div class="code-block text-green-400">
+--font-family-sans: 'Inter', system-ui, sans-serif<br>
+--font-family-mono: 'JetBrains Mono', monospace<br>
+--font-size-xs: 0.75rem<br>
+--font-size-sm: 0.875rem<br>
+--font-size-base: 1rem<br>
+--font-size-lg: 1.125rem<br>
+--font-size-xl: 1.25rem<br>
+--font-size-2xl: 1.5rem<br>
+--font-size-3xl: 1.875rem<br>
+--font-size-4xl: 2.25rem<br>
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">间距令牌</h3>
+          <div class="code-block text-green-400">
+--space-1: 0.25rem<br>
+--space-2: 0.5rem<br>
+--space-3: 0.75rem<br>
+--space-4: 1rem<br>
+--space-6: 1.5rem<br>
+--space-8: 2rem<br>
+--space-12: 3rem<br>
+--space-16: 4rem<br>
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">阴影令牌</h3>
+          <div class="code-block text-green-400">
+--shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05)<br>
+--shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1)<br>
+--shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1)<br>
+--shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1)<br>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Section: Usage Guide -->
+    <section id="usage" class="mb-16 hidden">
+      <h2 class="text-2xl font-semibold mb-8">📖 使用指南</h2>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">应用配色方案</h3>
+          <p class="text-gray-400 mb-4">通过CSS变量快速切换配色方案：</p>
+          <div class="code-block text-green-400">
+:root {<br>
+&nbsp;&nbsp;--brand-primary: #3B82F6;<br>
+&nbsp;&nbsp;--brand-secondary: #8B5CF6;<br>
+&nbsp;&nbsp;--brand-accent: #06B6D4;<br>
+}<br>
+<br>
+/* 切换为暖阳金方案 */<br>
+.theme-warm {<br>
+&nbsp;&nbsp;--brand-primary: #F59E0B;<br>
+&nbsp;&nbsp;--brand-secondary: #FBBF24;<br>
+&nbsp;&nbsp;--brand-accent: #EA580C;<br>
+}
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">使用Logo</h3>
+          <p class="text-gray-400 mb-4">在HTML中引用Logo：</p>
+          <div class="code-block text-green-400">
+&lt;!-- 标准版 --&gt;<br>
+&lt;img src="/brain-itch-logo.svg" alt="脑痒"&gt;<br>
+<br>
+&lt;!-- 简化版（小尺寸） --&gt;<br>
+&lt;img src="/brain-itch-logo-simple.svg" alt="脑痒"&gt;<br>
+<br>
+&lt;!-- 单色版（深色背景） --&gt;<br>
+&lt;img src="/brain-itch-logo-mono.svg" alt="脑痒"&gt;
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">角色配色</h3>
+          <p class="text-gray-400 mb-4">辩论系统中的角色颜色：</p>
+          <div class="code-block text-green-400">
+/* 主持人 - 品牌蓝 */<br>
+.role-host { color: #3B82F6; }<br>
+<br>
+/* 提出者 - 智慧绿 */<br>
+.role-proposer { color: #10B981; }<br>
+<br>
+/* 评审者 - 活力橙 */<br>
+.role-reviewer { color: #F97316; }<br>
+<br>
+/* 系统 - 中性灰 */<br>
+.role-system { color: #6B7280; }
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3 class="text-lg font-medium mb-4">无障碍标准</h3>
+          <p class="text-gray-400 mb-4">颜色对比度要求：</p>
+          <div class="code-block text-green-400">
+/* 普通文本：4.5:1 对比度 */<br>
+.text-primary { color: #F1F5F9; }<br>
+.bg-dark { background: #0F1117; }<br>
+/* 对比度: 15.3:1 ✓ */<br>
+<br>
+/* 大文本：3:1 对比度 */<br>
+.text-large { color: #94A3B8; }<br>
+/* 对比度: 4.7:1 ✓ */
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  
+  <script>
+    function showSection(sectionId) {
+      document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+      document.getElementById(sectionId).classList.remove('hidden');
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+  </script>
+</body>
+</html>

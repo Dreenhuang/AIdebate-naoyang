@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="neuroGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B5CF6"/>
+      <stop offset="50%" style="stop-color:#3B82F6"/>
+      <stop offset="100%" style="stop-color:#06B6D4"/>
+    </linearGradient>
+    <radialGradient id="neuroNode" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#C4B5FD"/>
+      <stop offset="100%" style="stop-color:#7C3AED"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- Neural Connections -->
+  <g stroke="url(#neuroGrad)" stroke-width="2" opacity="0.6">
+    <!-- Left side connections -->
+    <line x1="32" y1="40" x2="56" y2="48"/>
+    <line x1="28" y1="64" x2="56" y2="64"/>
+    <line x1="32" y1="88" x2="56" y2="80"/>
+    
+    <!-- Center connections -->
+    <line x1="56" y1="48" x2="72" y2="36"/>
+    <line x1="56" y1="48" x2="72" y2="60"/>
+    <line x1="56" y1="48" x2="72" y2="72"/>
+    <line x1="56" y1="48" x2="72" y2="92"/>
+    <line x1="56" y1="64" x2="72" y2="60"/>
+    <line x1="56" y1="64" x2="72" y2="72"/>
+    <line x1="56" y1="80" x2="72" y2="72"/>
+    <line x1="56" y1="80" x2="72" y2="92"/>
+    
+    <!-- Right side connections -->
+    <line x1="72" y1="36" x2="96" y2="40"/>
+    <line x1="72" y1="60" x2="96" y2="64"/>
+    <line x1="72" y1="72" x2="96" y2="64"/>
+    <line x1="72" y1="72" x2="96" y2="88"/>
+    <line x1="72" y1="92" x2="96" y2="88"/>
+  </g>
+  
+  <!-- Neural Nodes -->
+  <g>
+    <!-- Left nodes -->
+    <circle cx="32" cy="40" r="8" fill="url(#neuroNode)"/>
+    <circle cx="28" cy="64" r="10" fill="url(#neuroNode)"/>
+    <circle cx="32" cy="88" r="7" fill="url(#neuroNode)"/>
+    
+    <!-- Center nodes -->
+    <circle cx="56" cy="48" r="12" fill="url(#neuroNode)" stroke="white" stroke-width="1"/>
+    <circle cx="56" cy="64" r="10" fill="url(#neuroNode)" stroke="white" stroke-width="1"/>
+    <circle cx="56" cy="80" r="9" fill="url(#neuroNode)" stroke="white" stroke-width="1"/>
+    
+    <!-- Right nodes -->
+    <circle cx="72" cy="36" r="7" fill="url(#neuroNode)"/>
+    <circle cx="72" cy="60" r="9" fill="url(#neuroNode)"/>
+    <circle cx="72" cy="72" r="11" fill="url(#neuroNode)" stroke="white" stroke-width="1"/>
+    <circle cx="72" cy="92" r="7" fill="url(#neuroNode)"/>
+    
+    <!-- Outer nodes -->
+    <circle cx="96" cy="40" r="6" fill="url(#neuroNode)"/>
+    <circle cx="96" cy="64" r="8" fill="url(#neuroNode)"/>
+    <circle cx="96" cy="88" r="6" fill="url(#neuroNode)"/>
+  </g>
+  
+  <!-- Itch Sensation Marks (radiating waves) -->
+  <g stroke="#EC4899" stroke-width="2" stroke-linecap="round" opacity="0.7">
+    <path d="M4 20 Q8 24 4 28" fill="none"/>
+    <path d="M8 16 Q14 22 8 28" fill="none"/>
+    <path d="M124 100 Q118 104 124 108" fill="none"/>
+    <path d="M120 104 Q114 110 120 116" fill="none"/>
+  </g>
+</svg>

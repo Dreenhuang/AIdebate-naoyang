@@ -6,6 +6,9 @@ require('dotenv').config();
 
 const debateRoutes = require('./routes/debate');
 const fileRoutes = require('./routes/files');
+const soulRoutes = require('./routes/souls');
+const documentRoutes = require('./routes/documents');
+const exportRoutes = require('./routes/exports');
 const WebSocketHandler = require('./websocket/handler');
 
 const app = express();
@@ -13,10 +16,14 @@ const PORT = process.env.PORT || 9528;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // API Routes
 app.use('/api/debate', debateRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/souls', soulRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/exports', exportRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

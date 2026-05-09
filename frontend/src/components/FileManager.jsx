@@ -45,12 +45,12 @@ export default function FileManager() {
   };
 
   return (
-    <div className="h-[200px] bg-bg-secondary border-t border-border-primary flex flex-col">
+    <div className="h-[140px] bg-bg-secondary border-t border-border-primary flex flex-col">
       {/* 头部 */}
-      <div className="px-4 py-2 border-b border-border-primary flex items-center justify-between">
+      <div className="px-4 py-1.5 border-b border-border-primary flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Folder className="w-4 h-4 text-brand-primary" />
-          <span className="text-sm font-medium">文件列表 ({files.length})</span>
+          <Folder className="w-3.5 h-3.5 text-brand-primary" />
+          <span className="text-xs font-medium text-text-secondary">文件列表 ({files.length})</span>
         </div>
         <div className="flex items-center gap-2">
           {selectedFiles.size > 0 && (
@@ -75,8 +75,8 @@ export default function FileManager() {
       {/* 文件列表 */}
       <div className="flex-1 overflow-y-auto">
         {files.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-text-muted">
-            <p className="text-sm">暂无文件，请先完成辩论</p>
+          <div className="flex items-center justify-center h-full text-text-muted py-2">
+            <p className="text-xs">暂无文件，请先完成辩论</p>
           </div>
         ) : (
           <div className="divide-y divide-border-primary">

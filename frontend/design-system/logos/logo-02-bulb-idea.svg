@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bulbGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FBBF24"/>
+      <stop offset="100%" style="stop-color:#F97316"/>
+    </linearGradient>
+    <linearGradient id="bulbCenter" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FEF3C7"/>
+      <stop offset="100%" style="stop-color:#FDE68A"/>
+    </linearGradient>
+    <filter id="bulbGlowFilter" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Glow Effect -->
+  <circle cx="64" cy="58" r="40" fill="url(#bulbGlow)" opacity="0.2" filter="url(#bulbGlowFilter)"/>
+  
+  <!-- Light Bulb Shape -->
+  <path d="M64 20 C42 20 30 36 30 52 C30 68 40 72 48 76 L48 90 C48 94 52 96 56 96 L72 96 C76 96 80 94 80 90 L80 76 C88 72 98 68 98 52 C98 36 86 20 64 20" 
+        fill="url(#bulbGlow)" filter="url(#bulbGlowFilter)"/>
+  
+  <!-- Inner Light -->
+  <ellipse cx="64" cy="50" rx="20" ry="18" fill="url(#bulbCenter)" opacity="0.8"/>
+  
+  <!-- Brain Pattern Inside Bulb -->
+  <g stroke="#8B5CF6" stroke-width="1.5" fill="none" opacity="0.6">
+    <path d="M52 42 Q58 46 54 52 Q50 58 56 60"/>
+    <path d="M76 42 Q70 46 74 52 Q78 58 72 60"/>
+    <path d="M64 38 Q64 48 64 58"/>
+    <path d="M54 48 Q64 52 74 48"/>
+    <path d="M52 54 Q58 56 64 54 Q70 52 76 54"/>
+  </g>
+  
+  <!-- Itch Sparks (Thought Sparks) -->
+  <g stroke="url(#bulbGlow)" stroke-width="2" stroke-linecap="round">
+    <line x1="20" y1="32" x2="14" y2="26"/>
+    <line x1="18" y1="38" x2="10" y2="38"/>
+    <line x1="108" y1="32" x2="114" y2="26"/>
+    <line x1="110" y1="38" x2="118" y2="38"/>
+    <line x1="24" y1="20" x2="20" y2="12"/>
+    <line x1="104" y1="20" x2="108" y2="12"/>
+  </g>
+  
+  <!-- Base/Screw -->
+  <rect x="52" y="96" width="24" height="8" rx="2" fill="#6B7280"/>
+  <rect x="54" y="104" width="20" height="4" rx="1" fill="#4B5563"/>
+  <rect x="56" y="108" width="16" height="4" rx="1" fill="#374151"/>
+</svg>

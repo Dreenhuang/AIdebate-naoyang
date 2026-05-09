@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <!-- 柔和阴影效果 -->
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.1"/>
+    </filter>
+    
+    <!-- 线条平滑效果 -->
+    <filter id="smooth">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- 主角色组 -->
+  <g filter="url(#softShadow)">
+    
+    <!-- 身体/肩膀 -->
+    <path d="M50 145 
+             Q45 150 42 165 
+             Q40 180 45 190
+             L65 185
+             Q68 175 70 160
+             Q72 148 68 142
+             Z"
+          fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M150 145 
+             Q155 150 158 165 
+             Q160 180 155 190
+             L135 185
+             Q132 175 130 160
+             Q128 148 132 142
+             Z"
+          fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- 脖子/衣领 -->
+    <path d="M75 138 
+             Q100 145 125 138
+             L122 148
+             Q100 155 78 148
+             Z"
+          fill="#ffffff" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- 头部轮廓 -->
+    <circle cx="100" cy="85" r="55" fill="#ffffff" stroke="#1a1a1a" stroke-width="4"/>
+    
+    <!-- 头发 -->
+    <path d="M48 75 
+             Q45 60 52 48 
+             Q62 32 82 28 
+             Q100 25 118 30 
+             Q135 36 145 52 
+             Q152 68 148 85"
+          fill="none" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
+    
+    <!-- 额头头发细节 -->
+    <path d="M70 35 Q80 32 90 33" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+    <path d="M110 34 Q120 37 128 43" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- 左耳 -->
+    <ellipse cx="45" cy="88" rx="10" ry="14" fill="#ffffff" stroke="#1a1a1a" stroke-width="3"/>
+    <path d="M42 84 Q44 88 42 92" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- 眼睛 -->
+    <circle cx="83" cy="85" r="6" fill="#1a1a1a"/>
+    <circle cx="117" cy="85" r="6" fill="#1a1a1a"/>
+    
+    <!-- 眼睛高光 -->
+    <circle cx="85" cy="83" r="2" fill="#ffffff"/>
+    <circle cx="119" cy="83" r="2" fill="#ffffff"/>
+
+    <!-- 鼻子 -->
+    <circle cx="100" cy="95" r="3" fill="#1a1a1a" opacity="0.3"/>
+
+    <!-- 微笑嘴巴 -->
+    <path d="M88 108 Q100 118 112 108" fill="none" stroke="#1a1a1a" stroke-width="3.5" stroke-linecap="round"/>
+
+    <!-- 腮红 -->
+    <ellipse cx="73" cy="98" rx="8" ry="5" fill="#FFB6C1" opacity="0.4"/>
+    <ellipse cx="127" cy="98" rx="8" ry="5" fill="#FFB6C1" opacity="0.4"/>
+
+    <!-- 挠头的手臂（右侧） -->
+    <path d="M145 115 
+             Q155 105 162 95 
+             Q168 85 165 78
+             Q162 72 156 74
+             Q150 77 148 85
+             Q146 93 152 100
+             Q158 107 155 115
+             Q152 123 148 128
+             L140 125"
+          fill="none" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- 手掌 -->
+    <ellipse cx="161" cy="76" rx="12" ry="10" fill="#ffffff" stroke="#1a1a1a" stroke-width="3"/>
+    
+    <!-- 手指 -->
+    <path d="M154 70 Q153 66 156 64" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M159 67 Q159 63 162 61" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M165 69 Q167 65 169 64" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M170 73 Q173 71 174 73" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- 挠头的动感线条 -->
+    <g stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" opacity="0.6">
+      <line x1="172" y1="58" x2="178" y2="52"/>
+      <line x1="176" y1="65" x2="183" y2="62"/>
+      <line x1="177" y1="74" x2="184" y2="75"/>
+    </g>
+
+  </g>
+
+  <!-- 品牌标识文字区域（可选，根据需要取消注释）-->
+  <!--
+  <text x="100" y="195" text-anchor="middle" font-family="'Inter', sans-serif" font-size="16" font-weight="600" fill="#1a1a1a">
+    脑痒
+  </text>
+  -->
+</svg>

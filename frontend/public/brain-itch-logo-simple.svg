@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Simplified version: Only brain outline -->
+  <path d="M64 20 C40 20 28 36 28 52 C28 68 36 76 36 76 C36 76 28 84 28 92 C28 108 44 116 64 116 C84 116 100 108 100 92 C100 84 92 76 92 76 C92 76 100 68 100 52 C100 36 88 20 64 20" 
+        fill="#8B5CF6"/>
+  <path d="M64 32 Q64 48 64 64 Q64 80 64 96" stroke="white" stroke-width="2" opacity="0.3"/>
+</svg>
