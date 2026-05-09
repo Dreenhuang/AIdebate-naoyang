@@ -1059,6 +1059,27 @@ export const getAllSouls = () => {
   return all;
 };
 
+// 获取角色类型名称映射
+export const roleTypeNames = {
+  host: '主持人类',
+  proposer: '提案者类',
+  reviewer: '审查者类',
+  supplementer: '补充者类',
+  summarizer: '总结者类',
+  debater: '辩论者类',
+  brainstormer: '头脑风暴类',
+};
+
+// 难度名称映射
+export const difficultyNames = {
+  simple: '简单',
+  medium: '中等',
+  complex: '复杂',
+};
+
+// 获取所有角色预设（直接返回 soulPresets）
+export const getSoulPresets = () => soulPresets;
+
 // 按角色类型获取
 export const getSoulsByRoleType = (roleType) => {
   return soulPresets[roleType] || [];
@@ -1107,5 +1128,17 @@ export const getSoulQuickLookup = () => {
   return lookup;
 };
 
+// 按角色类型和ID获取角色（兼容 soulVersionManager 的调用方式）
+export const getSoulPresetById = (roleType, presetId) => {
+  if (!roleType || !presetId) return null;
+  const souls = soulPresets[roleType];
+  if (!souls) return null;
+  return souls.find((s) => s.id === presetId) || null;
+};
+
 // 兼容旧版本的导出
+export const getRandomSoulPreset = (roleType) => {
+  return getRandomSoul(roleType);
+};
+
 export default soulPresets;
