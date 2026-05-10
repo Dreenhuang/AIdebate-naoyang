@@ -1355,16 +1355,8 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
         }
       }
 
-      // 🔥 后处理：清理明显的重复模式（Level 1-5）
-      fullContent = this.backtrackValidator.cleanDuplicatePatterns(fullContent);
-      
-      // 🔥 V3.0 新增：智能文本精炼（句子级去重 + 语义优化）
-      const originalLength = fullContent.length;
-      fullContent = this.backtrackValidator.refineOutputText(fullContent);
-      
-      if (originalLength !== fullContent.length) {
-        console.log(`[DebateEngine] 📝 文本精炼: ${originalLength} → ${fullContent.length} 字符 (去除 ${originalLength - fullContent.length} 字符冗余)`);
-      }
+      // 🔥 V9.0 极简修复：跳过所有后处理清理，保留 AI 原始输出
+      // 原则：程序可用性优先，不要复杂逻辑导致内容丢失
 
       clearTimeout(timeoutId);
       this._currentAbortController = null;
