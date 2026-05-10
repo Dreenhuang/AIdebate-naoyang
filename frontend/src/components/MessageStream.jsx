@@ -3,8 +3,10 @@ import {
   MessageSquare, Play, Columns2, List, Loader2, Brain, Sparkles,
   Download, FileText, CheckCircle, AlertCircle,
   Palette, Layers, GitBranch, ChevronDown, Zap, X, Expand,
-  User, MessageCircle, Quote, Mic
+  User, MessageCircle, Quote, Mic, ClipboardCheck, ArrowRight
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useDebateStore } from '../stores/debateStore';
 import { useModeStore } from '../stores/modeStore';
 import StreamMessage from './StreamMessage'; // 🔥 V2.2 新增
@@ -27,10 +29,8 @@ export default function MessageStream() {
   }, [messages]);
 
   // 🔥 修复：确保流式输出时正确显示，同时显示之前已保存的消息
-  const showLoading = !isStreaming && debateStatus === 'running' && (
-    messages.length === 0 ||
-    (messages.length > 0 && !isRoleMessage(messages[messages.length - 1]))
-  );
+  // 仅在非流式且辩论运行中、且消息为空时显示加载状态
+  const showLoading = !isStreaming && debateStatus === 'running' && messages.length === 0;
 
   return (
     <div className="flex-1 flex flex-col bg-bg-primary h-full">
@@ -95,16 +95,18 @@ export default function MessageStream() {
 
       {/* 消息列表区域 - 改为左右布局：左侧30%流式输出，右侧70%卡片列表 */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* 左侧区域：流式输出 (30%) */}
-        <div className="w-[30%] border-r border-border-primary overflow-y-auto bg-bg-primary">
-          <div className="p-4">
-            {/* 🔥 V2.2 新增：流式输出显示 */}
-            <StreamMessage />
-          </div>
+        {/* 左侧区域：流式输出 (30%) - 仅在流式输出时显示 */}
+        <div className={`border-r border-border-primary overflow-y-auto bg-bg-primary transition-all duration-300 ${isStreaming ? 'w-[30%]' : 'w-0 border-none'}`}>
+          {isStreaming && (
+            <div className="p-4">
+              {/* 🔥 V2.2 新增：流式输出显示 */}
+              <StreamMessage />
+            </div>
+          )}
         </div>
 
-        {/* 右侧区域：卡片列表 (70%) */}
-        <div ref={scrollRef} className="w-[70%] overflow-y-auto p-4 relative">
+        {/* 右侧区域：卡片列表 (70%) - 根据流式状态自适应宽度 */}
+        <div ref={scrollRef} className={`overflow-y-auto p-4 relative transition-all duration-300 ${isStreaming ? 'w-[70%]' : 'w-full'}`}>
           {messages.length === 0 && debateStatus === 'idle' ? (
             <EmptyState config={config} />
           ) : (
@@ -135,7 +137,7 @@ export default function MessageStream() {
               )}
 
               {/* 🔥 修复：根据状态显示加载指示器或消息列表 */}
-              {showLoading ? (
+              {showLoading || (messages.length === 0 && debateStatus === 'running') ? (
                 <AILoadingIndicator />
               ) : viewMode === 'styled' && DisplayComponent ? (
                 <DisplayComponent messages={messages} currentMode={currentMode} />
@@ -211,10 +213,21 @@ function AILoadingIndicator() {
   );
 }
 
+// ===== 总结卡片组件的 Markdown 渲染配置 =====
+const summaryMarkdownComponents = {
+  p: ({ children }) => <p className="text-sm text-gray-7 leading-relaxed mb-2">{children}</p>,
+  strong: ({ children }) => <strong className="font-bold text-gray-8">{children}</strong>,
+  ul: ({ children }) => <ul className="list-disc list-outside ml-5 mb-2 space-y-1">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal list-outside ml-5 mb-2 space-y-1">{children}</ol>,
+  li: ({ children }) => <li className="text-sm text-gray-7 leading-relaxed">{children}</li>,
+};
+
 // ===== 时间线视图 - 重构版本：中央时间线 + 交替卡片布局 =====
 function TimelineView({ messages, cardStyle }) {
   const [expandedCard, setExpandedCard] = useState(null);
   const scrollRef = useRef(null);
+  // 🔥 BUG-005 FIX: 获取 consensus 数据用于显示总结卡片
+  const consensusList = useDebateStore((state) => state.consensus);
 
   // 自动滚动到最新消息
   useEffect(() => {
@@ -230,7 +243,13 @@ function TimelineView({ messages, cardStyle }) {
   }));
 
   if (timelineMessages.length === 0) {
-    return <div className="space-y-4 max-w-3xl mx-auto">{messages.map((m,i)=><FallbackMessage key={i} message={m} cardStyle={cardStyle}/>)}</div>;
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-text-muted py-20">
+        <MessageSquare className="w-16 h-16 mb-4 opacity-30"/>
+        <p className="text-lg mb-2 font-medium">等待辩论开始</p>
+        <p className="text-sm opacity-70">配置辩论参数后点击"开始辩论"</p>
+      </div>
+    );
   }
 
   return (
@@ -284,6 +303,36 @@ function TimelineView({ messages, cardStyle }) {
           );
         })}
       </div>
+
+      {/* 🔥 BUG-005 FIX: 显示总结卡片 */}
+      {consensusList && consensusList.length > 0 && (
+        <div className="mt-8 max-w-4xl mx-auto animate-fade-in">
+          <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-5 shadow-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <ClipboardCheck size={22} className="text-green-6" />
+              <h3 className="font-bold text-lg text-green-8">讨论总结</h3>
+              <ArrowRight size={18} className="text-green-5" />
+            </div>
+            {consensusList.map((item, idx) => (
+              <div key={idx} className="mb-3 p-4 bg-white/90 rounded-lg shadow-sm">
+                <div className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-7 h-7 bg-green-100 text-green-7 rounded-full flex items-center justify-center text-sm font-bold">
+                    {idx + 1}
+                  </span>
+                  <div className="flex-1">
+                    <div className="text-base font-semibold text-gray-8 mb-2">{item.title}</div>
+                    <div className="text-sm text-gray-6 whitespace-pre-wrap">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={summaryMarkdownComponents}>
+                        {item.content}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 展开详情弹窗 */}
       {expandedCard !== null && timelineMessages[expandedCard] && (
@@ -418,81 +467,143 @@ function TimelineNodeCard({ message, role, index, isLeft, isRight, isCenter, isE
   );
 }
 
-// ===== 辩论卡片弹窗（查看完整内容）=====
+// ===== 辩论卡片弹窗（查看完整内容）- 优化版 =====
 function DebateCardModal({ message, role, onClose }) {
   const cfg = getRoleConfig(role);
   const content = message.content || '';
   const parsed = parseDebateContent(content);
 
-  // 根据角色选择颜色
+  // 根据角色选择颜色 - 使用高对比度不透明配色
   const colors = {
-    proposer: { bg: 'bg-emerald-50', border: 'border-emerald-500', accent: 'bg-emerald-500', text: 'text-emerald-600', icon: 'bg-emerald-100' },
-    reviewer: { bg: 'bg-orange-50', border: 'border-orange-500', accent: 'bg-orange-500', text: 'text-orange-600', icon: 'bg-orange-100' },
-    host: { bg: 'bg-blue-50', border: 'border-blue-500', accent: 'bg-blue-500', text: 'text-blue-600', icon: 'bg-blue-100' },
+    proposer: {
+      bg: 'bg-white',
+      border: 'border-emerald-500',
+      accent: 'bg-emerald-500',
+      headerBg: 'bg-emerald-50',
+      corePointBg: 'bg-emerald-50',
+      icon: 'bg-emerald-100',
+      iconText: 'text-emerald-600'
+    },
+    reviewer: {
+      bg: 'bg-white',
+      border: 'border-orange-500',
+      accent: 'bg-orange-500',
+      headerBg: 'bg-orange-50',
+      corePointBg: 'bg-orange-50',
+      icon: 'bg-orange-100',
+      iconText: 'text-orange-600'
+    },
+    host: {
+      bg: 'bg-white',
+      border: 'border-blue-500',
+      accent: 'bg-blue-500',
+      headerBg: 'bg-blue-50',
+      corePointBg: 'bg-blue-50',
+      icon: 'bg-blue-100',
+      iconText: 'text-blue-600'
+    },
   };
   const color = colors[role] || colors.host;
 
-  // 处理内容中的换行和格式
-  const fullContent = content.split('\n').map((line, i) => {
-    if (!line.trim()) return <br key={i}/>;
-    if (line.startsWith('#')) {
-      return <h4 key={i} className="font-bold text-text-primary mt-4 mb-2">{line.replace(/^#+\s*/, '')}</h4>;
-    }
-    if (line.match(/^[-*]\s/) || line.match(/^\d+\.\s/)) {
-      return <li key={i} className="ml-4 text-text-secondary">{line.replace(/^[-*]\s|^\d+\.\s/, '')}</li>;
-    }
-    return <p key={i} className="text-text-secondary leading-relaxed mb-2">{line}</p>;
-  });
+  // Markdown渲染的自定义样式
+  const markdownComponents = {
+    h1: ({ children }) => <h1 className="text-xl font-bold text-[#1a1a1a] mt-6 mb-3 leading-tight">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-lg font-bold text-[#1a1a1a] mt-5 mb-3 leading-tight">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-base font-semibold text-[#1a1a1a] mt-4 mb-2 leading-snug">{children}</h3>,
+    h4: ({ children }) => <h4 className="text-sm font-semibold text-[#333333] mt-3 mb-2 leading-snug">{children}</h4>,
+    p: ({ children }) => <p className="text-[15px] text-[#333333] leading-relaxed mb-3">{children}</p>,
+    strong: ({ children }) => <strong className="font-bold text-[#1a1a1a]">{children}</strong>,
+    em: ({ children }) => <em className="italic text-[#444444]">{children}</em>,
+    ul: ({ children }) => <ul className="list-disc list-outside ml-5 mb-3 space-y-1.5">{children}</ul>,
+    ol: ({ children }) => <ol className="list-decimal list-outside ml-5 mb-3 space-y-1.5">{children}</ol>,
+    li: ({ children }) => <li className="text-[15px] text-[#333333] leading-relaxed pl-1">{children}</li>,
+    blockquote: ({ children }) => (
+      <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-3 bg-gray-50 rounded-r-lg">
+        {children}
+      </blockquote>
+    ),
+    code: ({ inline, children }) =>
+      inline ? (
+        <code className="px-1.5 py-0.5 bg-gray-100 text-[#d63384] rounded text-sm font-mono">{children}</code>
+      ) : (
+        <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-3 text-sm">
+          <code>{children}</code>
+        </pre>
+      ),
+    table: ({ children }) => (
+      <div className="overflow-x-auto my-4 rounded-lg border border-gray-200">
+        <table className="min-w-full divide-y divide-gray-200">{children}</table>
+      </div>
+    ),
+    thead: ({ children }) => <thead className="bg-gray-50">{children}</thead>,
+    tbody: ({ children }) => <tbody className="bg-white divide-y divide-gray-200">{children}</tbody>,
+    th: ({ children }) => (
+      <th className="px-4 py-3 text-left text-xs font-semibold text-[#1a1a1a] uppercase tracking-wider">
+        {children}
+      </th>
+    ),
+    td: ({ children }) => (
+      <td className="px-4 py-3 text-sm text-[#333333]">{children}</td>
+    ),
+    hr: () => <hr className="my-6 border-t-2 border-gray-200" />,
+    a: ({ href, children }) => (
+      <a href={href} className="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    ),
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       {/* 遮罩层 */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"/>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"/>
 
-      {/* 弹窗主体 */}
-      <div className="relative bg-surface-container-lowest rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-300 border-t-4 ${color.border}"
+      {/* 弹窗主体 - 不透明背景 + 高对比度 */}
+      <div className={`relative ${color.bg} rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-300 border-t-4 ${color.border}`}
            onClick={(e) => e.stopPropagation()}
-           style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
-        {/* 弹窗头部 */}
-        <div className={`px-5 py-4 border-b border-border-primary flex items-center justify-between ${color.bg}`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color.icon} ${color.text}`}>
-              {role === 'proposer' ? <User size={18}/> :
-               role === 'reviewer' ? <MessageCircle size={18}/> :
-               <Mic size={18}/>}
+           style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+        {/* 弹窗头部 - 不透明背景 */}
+        <div className={`px-6 py-5 border-b border-gray-200 flex items-center justify-between ${color.headerBg}`}>
+          <div className="flex items-center gap-3.5">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color.icon} shadow-sm`}>
+              {role === 'proposer' ? <User size={20} className={color.iconText}/> :
+               role === 'reviewer' ? <MessageCircle size={20} className={color.iconText}/> :
+               <Mic size={20} className={color.iconText}/>}
             </div>
             <div>
-              <p className="font-bold text-text-primary">{cfg.label}</p>
-              <p className="text-sm text-text-muted">{cfg.subtitle}</p>
+              <p className="font-bold text-[#1a1a1a] text-lg">{cfg.label}</p>
+              <p className="text-sm text-[#666666] mt-0.5">{cfg.subtitle}</p>
             </div>
           </div>
           <button onClick={onClose}
-            className="w-8 h-8 rounded-full bg-surface-container-low hover:bg-surface-container-high flex items-center justify-center transition-colors">
-            <X size={16} className="text-text-muted"/>
+            className="w-9 h-9 rounded-full bg-white hover:bg-gray-100 border border-gray-200 flex items-center justify-center transition-all shadow-sm hover:shadow-md">
+            <X size={18} className="#666666"/>
           </button>
         </div>
 
-        {/* 弹窗内容区 */}
-        <div className="p-5 overflow-y-auto max-h-[60vh]">
-          {/* 核心观点 */}
+        {/* 弹窗内容区 - 优化滚动和排版 */}
+        <div className="p-6 overflow-y-auto flex-1 min-h-0">
+          {/* 核心观点 - 高对比度显示 */}
           {parsed.corePoint && (
-            <div className={`p-4 rounded-xl mb-4 border-l-4 ${color.accent} ${color.bg}`}>
-              <p className="font-bold text-text-primary leading-relaxed">
+            <div className={`p-5 rounded-xl mb-5 border-l-4 ${color.accent} ${color.corePointBg} shadow-sm`}>
+              <p className="font-bold text-[16px] text-[#1a1a1a] leading-relaxed">
                 {parsed.corePoint}
               </p>
             </div>
           )}
 
-          {/* 完整内容 */}
-          <div className="space-y-2">
-            {fullContent}
+          {/* Markdown内容渲染 - 完整支持GFM语法 */}
+          <div className="prose prose-sm max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              {content}
+            </ReactMarkdown>
           </div>
         </div>
 
-        {/* 弹窗底部 */}
-        <div className="px-5 py-3 border-t border-border-primary bg-surface-container-low flex justify-end">
+        {/* 弹窗底部 - 固定位置 */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end flex-shrink-0">
           <button onClick={onClose}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${color.accent} text-white hover:opacity-90`}>
+            className={`px-6 py-2.5 rounded-lg font-medium transition-all ${color.accent} text-white hover:opacity-90 active:scale-95 shadow-md hover:shadow-lg`}>
             关闭
           </button>
         </div>

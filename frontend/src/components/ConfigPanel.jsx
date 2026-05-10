@@ -88,9 +88,12 @@ export default function ConfigPanel({ onStart, onStop, onReset }) {
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {/* 模式选择区域 */}
         <div className="bg-gray-2 rounded-lg p-3 border border-gray-3">
-          <button
+          <div
             onClick={() => setShowModeSelector(!showModeSelector)}
-            className="w-full flex items-center justify-between"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowModeSelector(!showModeSelector); }}
+            role="button"
+            tabIndex={0}
+            className="w-full flex items-center justify-between cursor-pointer hover:bg-gray-3 transition-colors focus-ring"
           >
             <div className="flex items-center gap-2">
               <LayoutGrid className="w-4 h-4 text-brand-5" />
@@ -101,20 +104,23 @@ export default function ConfigPanel({ onStart, onStop, onReset }) {
               <span className="text-small text-gray-7">{currentMode?.name}</span>
               {showModeSelector ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </div>
-          </button>
+          </div>
 
           {showModeSelector && (
             <div className="mt-3 space-y-2 max-h-80 overflow-y-auto">
               {Object.entries(categories).map(([categoryName, modes]) => (
                 <div key={categoryName} className="border border-gray-3 rounded-lg overflow-hidden">
-                  <button
+                  <div
                     onClick={() => setExpandedCategory(expandedCategory === categoryName ? null : categoryName)}
-                    className="w-full px-3 py-2 flex items-center gap-2 bg-gray-3/50 hover:bg-gray-3 transition-colors"
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpandedCategory(expandedCategory === categoryName ? null : categoryName); }}
+                    role="button"
+                    tabIndex={0}
+                    className="w-full px-3 py-2 flex items-center gap-2 bg-gray-3/50 hover:bg-gray-3 transition-colors cursor-pointer focus-ring"
                   >
                     <span>{CATEGORY_ICONS[categoryName]}</span>
                     <span className="text-small font-medium text-gray-9 flex-1 text-left">{categoryName}</span>
                     {expandedCategory === categoryName ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                  </button>
+                  </div>
 
                   {expandedCategory === categoryName && (
                     <div className="bg-bg-secondary">

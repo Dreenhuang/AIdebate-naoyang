@@ -175,7 +175,7 @@ describe('debateStore', () => {
 
       // 重置
       act(() => {
-        result.current.resetDebate();
+        result.current.reset();
       });
 
       // 验证重置

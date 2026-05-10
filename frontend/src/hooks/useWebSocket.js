@@ -160,8 +160,11 @@ export function useWebSocket() {
           switch (type) {
             case 'debate:started':
               storeActions.current.setDebateStatus?.('running');
-              if (payload?.phases) {
-                storeActions.current.setTotalPhases?.(payload.phases);
+              // 🔥 修复：phases 是数组，应该取长度或直接使用 totalPhases
+              if (payload?.totalPhases !== undefined) {
+                storeActions.current.setTotalPhases?.(payload.totalPhases);
+              } else if (payload?.phases && Array.isArray(payload.phases)) {
+                storeActions.current.setTotalPhases?.(payload.phases.length);
               }
               if (payload?.totalRounds) {
                 storeActions.current.setTotalRounds?.(payload.totalRounds);

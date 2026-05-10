@@ -1,0 +1,326 @@
+[
+  {
+    "id": "TC-001",
+    "modeId": "brainstorm",
+    "modeName": "发散头脑风暴",
+    "topic": "人工智能是否会取代人类的工作？",
+    "expectedRoles": [
+      "host",
+      "ideator"
+    ],
+    "roundsPerPhase": 3,
+    "totalPhases": 3,
+    "expectations": {
+      "minMessages": 4,
+      "hasCreativeIdeas": true,
+      "noRepetition": true,
+      "roleParticipation": true
+    },
+    "duration": 36,
+    "messageCount": 0,
+    "eventCount": 3,
+    "messages": [],
+    "events": [
+      {
+        "type": "send",
+        "event": "debate:start",
+        "timestamp": 1778392915804
+      },
+      {
+        "type": "receive",
+        "event": "system:connected",
+        "timestamp": 1778392915806,
+        "payload": "{\"payload\":{\"timestamp\":\"2026-05-10T06:01:55.802Z\"}}"
+      },
+      {
+        "type": "receive",
+        "event": "debate:error",
+        "timestamp": 1778392915808,
+        "payload": "{\"payload\":{\"message\":\"Cannot read properties of undefined (reading 'topic')\"}}"
+      }
+    ],
+    "passed": false,
+    "qualityScore": {
+      "total": 23,
+      "breakdown": {
+        "消息数量检查": 0,
+        "角色参与度检查": 0,
+        "内容质量检查": 0,
+        "内容重复检查": 100,
+        "流程完整性检查": 50
+      }
+    },
+    "issues": [
+      "消息数量不足: 实际 0, 期望 >= 4",
+      "缺少角色发言: host, ideator",
+      "质量问题: , 平均长度: 0字符",
+      "流程不完整: 缺少轮次事件, 没有收到任何消息"
+    ],
+    "recommendations": [
+      "建议增加轮次或减少角色数量以确保充分讨论",
+      "检查角色路由逻辑，确保所有角色都能正常发言",
+      "优化提示词模板，要求更详细的内容输出",
+      "检查事件发射逻辑，确保完整的事件链路"
+    ]
+  },
+  {
+    "id": "TC-002",
+    "modeId": "standard-debate",
+    "modeName": "标准正反方辩论",
+    "topic": "远程办公是否应该成为常态？",
+    "expectedRoles": [
+      "host",
+      "pro-side",
+      "con-side",
+      "judge"
+    ],
+    "roundsPerPhase": 2,
+    "totalPhases": 3,
+    "expectations": {
+      "minMessages": 6,
+      "hasProArguments": true,
+      "hasConArguments": true,
+      "hasVerdict": true
+    },
+    "duration": 9,
+    "messageCount": 0,
+    "eventCount": 3,
+    "messages": [],
+    "events": [
+      {
+        "type": "send",
+        "event": "debate:start",
+        "timestamp": 1778392915817
+      },
+      {
+        "type": "receive",
+        "event": "system:connected",
+        "timestamp": 1778392915818,
+        "payload": "{\"payload\":{\"timestamp\":\"2026-05-10T06:01:55.818Z\"}}"
+      },
+      {
+        "type": "receive",
+        "event": "debate:error",
+        "timestamp": 1778392915820,
+        "payload": "{\"payload\":{\"message\":\"Cannot read properties of undefined (reading 'topic')\"}}"
+      }
+    ],
+    "passed": false,
+    "qualityScore": {
+      "total": 23,
+      "breakdown": {
+        "消息数量检查": 0,
+        "角色参与度检查": 0,
+        "内容质量检查": 0,
+        "内容重复检查": 100,
+        "流程完整性检查": 50
+      }
+    },
+    "issues": [
+      "消息数量不足: 实际 0, 期望 >= 6",
+      "缺少角色发言: host, pro-side, con-side, judge",
+      "质量问题: , 平均长度: 0字符",
+      "流程不完整: 缺少轮次事件, 没有收到任何消息"
+    ],
+    "recommendations": [
+      "建议增加轮次或减少角色数量以确保充分讨论",
+      "检查角色路由逻辑，确保所有角色都能正常发言",
+      "优化提示词模板，要求更详细的内容输出",
+      "检查事件发射逻辑，确保完整的事件链路"
+    ]
+  },
+  {
+    "id": "TC-003",
+    "modeId": "roundtable",
+    "modeName": "圆桌讨论",
+    "topic": "如何平衡工作与生活？",
+    "expectedRoles": [
+      "host",
+      "member"
+    ],
+    "roundsPerPhase": 2,
+    "totalPhases": 2,
+    "expectations": {
+      "minMessages": 4,
+      "balancedDiscussion": true,
+      "diversePerspectives": true
+    },
+    "duration": 7,
+    "messageCount": 0,
+    "eventCount": 3,
+    "messages": [],
+    "events": [
+      {
+        "type": "send",
+        "event": "debate:start",
+        "timestamp": 1778392915825
+      },
+      {
+        "type": "receive",
+        "event": "system:connected",
+        "timestamp": 1778392915825,
+        "payload": "{\"payload\":{\"timestamp\":\"2026-05-10T06:01:55.825Z\"}}"
+      },
+      {
+        "type": "receive",
+        "event": "debate:error",
+        "timestamp": 1778392915828,
+        "payload": "{\"payload\":{\"message\":\"Cannot read properties of undefined (reading 'topic')\"}}"
+      }
+    ],
+    "passed": false,
+    "qualityScore": {
+      "total": 23,
+      "breakdown": {
+        "消息数量检查": 0,
+        "角色参与度检查": 0,
+        "内容质量检查": 0,
+        "内容重复检查": 100,
+        "流程完整性检查": 50
+      }
+    },
+    "issues": [
+      "消息数量不足: 实际 0, 期望 >= 4",
+      "缺少角色发言: host, member",
+      "质量问题: , 平均长度: 0字符",
+      "流程不完整: 缺少轮次事件, 没有收到任何消息"
+    ],
+    "recommendations": [
+      "建议增加轮次或减少角色数量以确保充分讨论",
+      "检查角色路由逻辑，确保所有角色都能正常发言",
+      "优化提示词模板，要求更详细的内容输出",
+      "检查事件发射逻辑，确保完整的事件链路"
+    ]
+  },
+  {
+    "id": "TC-004",
+    "modeId": "review",
+    "modeName": "方案评审",
+    "topic": "评估\"每周四天工作制\"方案的可行性",
+    "expectedRoles": [
+      "host",
+      "presenter",
+      "supplementer",
+      "critic",
+      "summarizer"
+    ],
+    "roundsPerPhase": 2,
+    "totalPhases": 2,
+    "expectations": {
+      "minMessages": 6,
+      "hasProposal": true,
+      "hasCritique": true,
+      "hasSummary": true
+    },
+    "duration": 8,
+    "messageCount": 0,
+    "eventCount": 3,
+    "messages": [],
+    "events": [
+      {
+        "type": "send",
+        "event": "debate:start",
+        "timestamp": 1778392915833
+      },
+      {
+        "type": "receive",
+        "event": "system:connected",
+        "timestamp": 1778392915834,
+        "payload": "{\"payload\":{\"timestamp\":\"2026-05-10T06:01:55.833Z\"}}"
+      },
+      {
+        "type": "receive",
+        "event": "debate:error",
+        "timestamp": 1778392915836,
+        "payload": "{\"payload\":{\"message\":\"Cannot read properties of undefined (reading 'topic')\"}}"
+      }
+    ],
+    "passed": false,
+    "qualityScore": {
+      "total": 23,
+      "breakdown": {
+        "消息数量检查": 0,
+        "角色参与度检查": 0,
+        "内容质量检查": 0,
+        "内容重复检查": 100,
+        "流程完整性检查": 50
+      }
+    },
+    "issues": [
+      "消息数量不足: 实际 0, 期望 >= 6",
+      "缺少角色发言: host, presenter, supplementer, critic, summarizer",
+      "质量问题: , 平均长度: 0字符",
+      "流程不完整: 缺少轮次事件, 没有收到任何消息"
+    ],
+    "recommendations": [
+      "建议增加轮次或减少角色数量以确保充分讨论",
+      "检查角色路由逻辑，确保所有角色都能正常发言",
+      "优化提示词模板，要求更详细的内容输出",
+      "检查事件发射逻辑，确保完整的事件链路"
+    ]
+  },
+  {
+    "id": "TC-005",
+    "modeId": "voting",
+    "modeName": "投票决策",
+    "topic": "是否应该在公司实施AI监控员工系统？",
+    "expectedRoles": [
+      "host",
+      "proposer",
+      "voter"
+    ],
+    "roundsPerPhase": 2,
+    "totalPhases": 2,
+    "expectations": {
+      "minMessages": 4,
+      "hasProposal": true,
+      "hasVotingProcess": true
+    },
+    "duration": 5,
+    "messageCount": 0,
+    "eventCount": 3,
+    "messages": [],
+    "events": [
+      {
+        "type": "send",
+        "event": "debate:start",
+        "timestamp": 1778392915840
+      },
+      {
+        "type": "receive",
+        "event": "system:connected",
+        "timestamp": 1778392915840,
+        "payload": "{\"payload\":{\"timestamp\":\"2026-05-10T06:01:55.840Z\"}}"
+      },
+      {
+        "type": "receive",
+        "event": "debate:error",
+        "timestamp": 1778392915843,
+        "payload": "{\"payload\":{\"message\":\"Cannot read properties of undefined (reading 'topic')\"}}"
+      }
+    ],
+    "passed": false,
+    "qualityScore": {
+      "total": 23,
+      "breakdown": {
+        "消息数量检查": 0,
+        "角色参与度检查": 0,
+        "内容质量检查": 0,
+        "内容重复检查": 100,
+        "流程完整性检查": 50
+      }
+    },
+    "issues": [
+      "消息数量不足: 实际 0, 期望 >= 4",
+      "缺少角色发言: host, proposer, voter",
+      "质量问题: , 平均长度: 0字符",
+      "流程不完整: 缺少轮次事件, 没有收到任何消息"
+    ],
+    "recommendations": [
+      "建议增加轮次或减少角色数量以确保充分讨论",
+      "检查角色路由逻辑，确保所有角色都能正常发言",
+      "优化提示词模板，要求更详细的内容输出",
+      "检查事件发射逻辑，确保完整的事件链路"
+    ]
+  }
+]

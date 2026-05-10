@@ -25,9 +25,12 @@ export default function RoleCard({ role, index }) {
 
   return (
     <div className="bg-gray-2 rounded-lg border border-gray-3 overflow-hidden">
-      <button
+      <div
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-gray-3 transition-colors focus-ring"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpanded(!expanded); }}
+        role="button"
+        tabIndex={0}
+        className="w-full flex items-center justify-between p-3 hover:bg-gray-3 transition-colors focus-ring cursor-pointer"
       >
         <div className="flex items-center gap-2">
           <div className={`w-3 h-3 rounded-full bg-${colorClass}`} />
@@ -52,7 +55,7 @@ export default function RoleCard({ role, index }) {
           )}
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </div>
-      </button>
+      </div>
 
       {expanded && (
         <div className="p-3 pt-0 space-y-3">

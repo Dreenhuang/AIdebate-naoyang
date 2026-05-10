@@ -1,0 +1,116 @@
+[
+  {
+    "id": "TC-001",
+    "modeId": "brainstorm",
+    "modeName": "发散头脑风暴",
+    "topic": "人工智能是否会取代人类的工作？",
+    "expectedRoles": [
+      "host",
+      "ideator"
+    ],
+    "roundsPerPhase": 3,
+    "totalPhases": 3,
+    "expectations": {
+      "minMessages": 4,
+      "hasCreativeIdeas": true,
+      "noRepetition": true,
+      "roleParticipation": true
+    },
+    "passed": false,
+    "error": "测试超时 (120s)",
+    "duration": 0,
+    "qualityScore": null
+  },
+  {
+    "id": "TC-002",
+    "modeId": "standard-debate",
+    "modeName": "标准正反方辩论",
+    "topic": "远程办公是否应该成为常态？",
+    "expectedRoles": [
+      "host",
+      "pro-side",
+      "con-side",
+      "judge"
+    ],
+    "roundsPerPhase": 2,
+    "totalPhases": 3,
+    "expectations": {
+      "minMessages": 6,
+      "hasProArguments": true,
+      "hasConArguments": true,
+      "hasVerdict": true
+    },
+    "passed": false,
+    "error": "测试超时 (120s)",
+    "duration": 0,
+    "qualityScore": null
+  },
+  {
+    "id": "TC-003",
+    "modeId": "roundtable",
+    "modeName": "圆桌讨论",
+    "topic": "如何平衡工作与生活？",
+    "expectedRoles": [
+      "host",
+      "member"
+    ],
+    "roundsPerPhase": 2,
+    "totalPhases": 2,
+    "expectations": {
+      "minMessages": 4,
+      "balancedDiscussion": true,
+      "diversePerspectives": true
+    },
+    "passed": false,
+    "error": "测试超时 (120s)",
+    "duration": 0,
+    "qualityScore": null
+  },
+  {
+    "id": "TC-004",
+    "modeId": "review",
+    "modeName": "方案评审",
+    "topic": "评估\"每周四天工作制\"方案的可行性",
+    "expectedRoles": [
+      "host",
+      "presenter",
+      "supplementer",
+      "critic",
+      "summarizer"
+    ],
+    "roundsPerPhase": 2,
+    "totalPhases": 2,
+    "expectations": {
+      "minMessages": 6,
+      "hasProposal": true,
+      "hasCritique": true,
+      "hasSummary": true
+    },
+    "passed": false,
+    "error": "测试超时 (120s)",
+    "duration": 0,
+    "qualityScore": null
+  },
+  {
+    "id": "TC-005",
+    "modeId": "voting",
+    "modeName": "投票决策",
+    "topic": "是否应该在公司实施AI监控员工系统？",
+    "expectedRoles": [
+      "host",
+      "proposer",
+      "voter"
+    ],
+    "roundsPerPhase": 2,
+    "totalPhases": 2,
+    "expectations": {
+      "minMessages": 4,
+      "hasProposal": true,
+      "hasVotingProcess": true
+    },
+    "passed": false,
+    "error": "测试超时 (120s)",
+    "duration": 0,
+    "qualityScore": null
+  }
+]

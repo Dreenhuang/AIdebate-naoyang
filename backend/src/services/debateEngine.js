@@ -1,43 +1,97 @@
 /**
- * DebateEngine - 结构化对抗性辩论引擎
+ * DebateEngine - 结构化对抗性辩论引擎 V4.1
  * 基于 debate skill 的核心原理实现
+ * 
+ * 改进点：
+ * - 使用共享常量（消除硬编码）
+ * - 完整日志体系
+ * - 参数校验机制
+ * - 通用角色处理架构
  */
 
 const EventEmitter = require('events');
 const { v4: uuidv4 } = require('uuid');
 const OpenAI = require('openai');
 
-// 辩论阶段定义
-const PHASES = {
-  PROBE: { id: 'probe', name: '需求探查', description: '深入理解需求背景和目标' },
-  DESIGN: { id: 'design', name: '方案设计', description: '提出和评估技术方案' },
-  IMPL: { id: 'impl', name: '实现规划', description: '细化实现步骤和资源规划' },
-  VALIDATE: { id: 'validate', name: '验证确认', description: '确认方案满足所有需求' },
-};
+// 🔥 V4.1: 引入共享常量
+const {
+  PHASES,
+  ROLES,
+  ROLE_CATEGORIES,
+  MESSAGE_TYPES,
+  WS_EVENTS,
+  isHostRole,
+  getMessageTypeForRole,
+  getDefaultSoulForRole,
+  isValidRoleType,
+} = require('../constants');
 
-// 角色类型
-const ROLES = {
-  HOST: 'host',
-  PROPOSER: 'proposer',
-  REVIEWER: 'reviewer',
-};
+// ==================== 日志工具 ====================
+const LOG_LEVELS = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
+let currentLogLevel = LOG_LEVELS.INFO;
 
-// 消息类型
-const MESSAGE_TYPES = {
-  PROPOSAL: 'proposal',
-  REVIEW: 'review',
-  CONSENSUS: 'consensus',
-  SYSTEM: 'system',
-  COMMITMENT: 'commitment',
-};
+function log(level, module, message, data = null) {
+  if (level < currentLogLevel) return;
+  
+  const timestamp = new Date().toISOString();
+  const levelStr = Object.keys(LOG_LEVELS).find(k => LOG_LEVELS[k] === level);
+  const prefix = `[${timestamp}] [${levelStr}] [${module}]`;
+  
+  const logMessage = data ? `${prefix} ${message}` : `${prefix} ${message}`;
+  
+  switch (level) {
+    case LOG_LEVELS.ERROR:
+      console.error(logMessage, data || '');
+      break;
+    case LOG_LEVELS.WARN:
+      console.warn(logMessage, data || '');
+      break;
+    case LOG_LEVELS.INFO:
+      console.log(logMessage);
+      break;
+    default:
+      console.debug(logMessage, data || '');
+  }
+}
+
+// ==================== 参数校验工具 ====================
+function validateRequired(value, name, context = '') {
+  if (value === undefined || value === null) {
+    throw new Error(`[ValidationError] ${context}: "${name}" 是必填参数，但收到 ${typeof value}`);
+  }
+  return value;
+}
+
+function validateString(value, name, minLength = 0) {
+  if (typeof value !== 'string') {
+    throw new Error(`[ValidationError] "${name}" 必须是字符串，但收到 ${typeof value}`);
+  }
+  if (minLength > 0 && value.length < minLength) {
+    throw new Error(`[ValidationError] "${name}" 长度不能小于 ${minLength}`);
+  }
+  return value.trim();
+}
+
+function validateArray(value, name, minItems = 0) {
+  if (!Array.isArray(value)) {
+    throw new Error(`[ValidationError] "${name}" 必须是数组，但收到 ${typeof value}`);
+  }
+  if (minItems > 0 && value.length < minItems) {
+    throw new Error(`[ValidationError] "${name}" 至少需要 ${minItems} 个元素`);
+  }
+  return value;
+}
 
 class DebateEngine extends EventEmitter {
   constructor(config = {}) {
     super();
 
+    // 🔥 V4.1: 参数校验
+    log(LOG_LEVELS.INFO, 'DebateEngine', '初始化辩论引擎...');
+    
     this.id = config.id || uuidv4();
-    this.topic = config.topic || '';
-    this.roles = config.roles || [];
+    this.topic = validateString(config.topic || '', 'topic', 0);
+    this.roles = validateArray(config.roles || [], 'roles', 0);
     this.maxRounds = config.maxRounds || 5;
     this.maxPhases = config.maxPhases || 4;
 
@@ -61,10 +115,16 @@ class DebateEngine extends EventEmitter {
     // AI 客户端初始化（带超时保护）
     const apiTimeout = parseInt(process.env.API_TIMEOUT_MS) || 60000; // 默认60秒超时
 
-    // 🔥 修复：直接使用正确的 API Key，避免被系统环境变量覆盖
+    // 从环境变量读取 API Key
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      log(LOG_LEVELS.ERROR, 'DebateEngine', 'DEEPSEEK_API_KEY 未配置');
+      throw new Error('【严重】DEEPSEEK_API_KEY 未在环境变量中配置。请在 .env 文件中设置 DEEPSEEK_API_KEY=your-api-key');
+    }
+
     this.aiClient = new OpenAI({
-      apiKey: 'sk-7f85a014ff1f4fb7938163b2717b70d5',
-      baseURL: 'https://api.deepseek.com',
+      apiKey: apiKey,
+      baseURL: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
       timeout: apiTimeout,
     });
 
@@ -75,11 +135,12 @@ class DebateEngine extends EventEmitter {
       defaultModel: process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash',
     };
 
-    console.log(`[DebateEngine] AI客户端初始化完成`);
-    console.log(`[DebateEngine] API端点: ${this.aiClient.baseURL}`);
-    console.log(`[DebateEngine] 超时设置: ${apiTimeout}ms`);
-    console.log(`[DebateEngine] 最大重试: ${this.apiConfig.maxRetries}次`);
-    console.log(`[DebateEngine] 输出深度: ${this.outputDepth}`);
+    log(LOG_LEVELS.INFO, 'DebateEngine', `AI客户端初始化完成`);
+    log(LOG_LEVELS.INFO, 'DebateEngine', `API端点: ${this.aiClient.baseURL}`);
+    log(LOG_LEVELS.INFO, 'DebateEngine', `超时设置: ${apiTimeout}ms`);
+    log(LOG_LEVELS.INFO, 'DebateEngine', `最大重试: ${this.apiConfig.maxRetries}次`);
+    log(LOG_LEVELS.INFO, 'DebateEngine', `输出深度: ${this.outputDepth}`);
+    log(LOG_LEVELS.DEBUG, 'DebateEngine', `角色数量: ${this.roles.length}`, this.roles.map(r => r.roleType));
 
     // 上下文管理
     this.contextManager = new ContextManager(this);
@@ -283,30 +344,59 @@ class DebateEngine extends EventEmitter {
   }
 
   /**
-   * 开始辩论
+   * 开始辩论（V4.1: 增强日志和校验）
    */
   async start() {
+    // 🔥 V4.1: 参数校验
+    log(LOG_LEVELS.INFO, 'DebateEngine', '开始辩论流程');
+    
     if (this.status === 'running') {
-      throw new Error('辩论已在进行中');
+      log(LOG_LEVELS.WARN, 'DebateEngine', '辩论已在进行中，忽略重复启动');
+      return;
     }
     
-    this.status = 'running';
-    this.currentPhase = 0;
-    this.currentRound = 0;
-    this.messages = [];
-    this.commitments = [];
-    this.consensus = [];
-    
-    this.emit('debate:started', {
-      id: this.id,
-      topic: this.topic,
-      phases: this.phases,
-      totalPhases: this.maxPhases,
-      totalRounds: this.maxRounds,
-    });
-    
-    // 开始第一阶段
-    await this.startPhase(0);
+    if (!this.topic || this.topic.trim().length === 0) {
+      log(LOG_LEVELS.ERROR, 'DebateEngine', '缺少讨论主题');
+      throw new Error('缺少讨论主题（topic）');
+    }
+
+    if (!this.roles || this.roles.length === 0) {
+      log(LOG_LEVELS.WARN, 'DebateEngine', '没有配置角色，将使用默认角色');
+      this.roles = [
+        { id: uuidv4(), name: '提案者', roleType: ROLES.PROPOSER },
+        { id: uuidv4(), name: '审查者', roleType: ROLES.REVIEWER },
+      ];
+    }
+
+    log(LOG_LEVELS.INFO, 'DebateEngine', `主题: "${this.topic}"`);
+    log(LOG_LEVELS.INFO, 'DebateEngine', `模式: ${this.modeId || 'default'}`);
+    log(LOG_LEVELS.DEBUG, 'DebateEngine', `角色列表:`, this.roles.map(r => ({ name: r.name, type: r.roleType })));
+
+    try {
+      this.status = 'running';
+      this.currentPhase = 0;
+      this.currentRound = 0;
+      this.messages = [];
+      this.commitments = [];
+      this.consensus = [];
+      
+      this.emit('debate:started', {
+        id: this.id,
+        topic: this.topic,
+        phases: this.phases,
+        totalPhases: this.maxPhases,
+        totalRounds: this.maxRounds,
+      });
+      
+      // 开始第一阶段
+      await this.startPhase(0);
+      
+    } catch (error) {
+      log(LOG_LEVELS.ERROR, 'DebateEngine', `辩论启动失败: ${error.message}`, error.stack);
+      this.emit('debate:error', { error: error.message, phase: 'startup' });
+      this.status = 'error';
+      throw error;
+    }
   }
 
   /**
@@ -363,7 +453,8 @@ class DebateEngine extends EventEmitter {
   }
 
   /**
-   * 开始指定轮次
+   * 开始指定轮次（V4.0：通用角色处理）
+   * 支持所有辩论模式，不再局限于 proposer/reviewer
    */
   async startRound(roundNumber) {
     if (roundNumber > this.maxRounds) {
@@ -382,8 +473,245 @@ class DebateEngine extends EventEmitter {
       totalPhases: this.maxPhases,
     });
     
-    // 执行 Proposer
-    await this.executeProposer();
+    // 🔥 V4.0 获取所有可用角色（排除 host）
+    const activeRoles = this.getActiveRoles();
+    
+    console.log(`[DebateEngine] 🎭 第 ${roundNumber} 轮 - 可用角色:`, activeRoles.map(r => `${r.name}(${r.roleType})`));
+    
+    if (activeRoles.length === 0) {
+      console.warn('[DebateEngine] ⚠️ 无可用角色，跳过本轮');
+      return;
+    }
+    
+    // 按顺序执行每个角色
+    for (let i = 0; i < activeRoles.length; i++) {
+      const role = activeRoles[i];
+      
+      // 构建上下文（根据角色位置决定）
+      const context = this.buildRoleContext(role, i, activeRoles.length);
+      
+      // 执行该角色的发言
+      await this.executeGenericRole(role, context);
+    }
+  }
+
+  /**
+   * 🔥 V4.0 新增：获取所有活跃的非 host 角色
+   */
+  /**
+   * 🔥 V4.1: 获取所有活跃的非 host 角色（使用共享常量）
+   */
+  getActiveRoles() {
+    const activeRoles = this.roles.filter(r => {
+      const rt = (r.roleType || '').toLowerCase().trim();
+      // 使用 isHostRole 函数判断（来自共享常量）
+      return !isHostRole(rt);
+    });
+    
+    log(LOG_LEVELS.DEBUG, 'DebateEngine', `活跃角色数量: ${activeRoles.length}`, activeRoles.map(r => r.roleType));
+    
+    return activeRoles;
+  }
+
+  /**
+   * 🔥 V4.0 新增：构建角色发言上下文
+   */
+  buildRoleContext(role, index, totalCount) {
+    const baseContext = {
+      topic: this.topic,
+      currentPhase: this.phases[this.currentPhase],
+      currentRound: this.currentRound,
+      messages: this.messages,
+      role: role.roleType,
+      roleName: role.name,
+      isFirstSpeaker: index === 0,
+      isLastSpeaker: index === totalCount - 1,
+      previousMessages: this.messages.filter(m => 
+        m.round === this.currentRound && m.phase === this.currentPhase
+      ),
+    };
+    
+    return baseContext;
+  }
+
+  /**
+   * 🔥 V4.0 新增：通用角色执行器（支持任意角色类型）
+   */
+  async executeGenericRole(role, context) {
+    console.log(`[DebateEngine] 🎤 ${role.name} (${role.roleType}) 开始发言...`);
+    
+    // 根据角色类型确定提示词策略
+    const prompt = this.buildGenericPrompt(role, context);
+    const soul = role.soul || this.getDefaultSoulForRole(role.roleType);
+
+    try {
+      // 调用 AI 流式输出
+      const content = await this.callAIStream(
+        soul,
+        prompt,
+        role.model || 'deepseek-v4-flash',
+        {
+          role: role.roleType,
+          roleName: role.name,
+          phase: this.currentPhase,
+          round: this.currentRound,
+          phaseId: this.phases[this.currentPhase]?.id || 'unknown',
+        },
+        () => {} // 空回调
+      );
+
+      if (content === '[已取消]') {
+        console.log(`[DebateEngine] ${role.name} 输出被取消`);
+        return;
+      }
+
+      // 确定消息类型
+      const messageType = this.determineMessageType(role.roleType, context.isFirstSpeaker);
+
+      const message = {
+        type: messageType,
+        role: role.roleType,
+        roleName: role.name,
+        round: this.currentRound,
+        phase: this.currentPhase,
+        phaseId: this.phases[this.currentPhase]?.id || 'unknown',
+        content: content,
+        timestamp: new Date().toISOString(),
+      };
+
+      this.messages.push(message);
+
+      // 🔥 BUG-002 FIX: 不再发送 debate:message 事件
+      // 原因：流式输出已通过 stream:end 事件将内容传递给前端
+      // 如果再发送 debate:message，会导致同一条消息被添加两次
+      // 前端通过 endStream() → messages: [...state.messages, newMessage] 添加消息
+      // this.emit('debate:message', message); // 已禁用 - 避免重复
+
+      console.log(`[DebateEngine] ✅ ${role.name} 发言完成 (${content.length}字符) [仅流式]`);
+      
+    } catch (error) {
+      console.error(`[DebateEngine] ❌ ${role.name} 发言失败:`, error.message);
+      
+      // 发送错误消息
+      this.emit('debate:error', {
+        role: role.roleType,
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * 🔥 V4.1: 为不同角色类型生成默认灵魂描述（使用共享常量）
+   */
+  getDefaultSoulForRole(roleType) {
+    // 直接使用共享常量中的函数
+    return getDefaultSoulForRole(roleType);
+  }
+
+  /**
+   * 🔥 V5.0 新增：构建通用提示词（含上下文记忆防重复）
+   */
+  buildGenericPrompt(role, context) {
+    const { topic, currentPhase, currentRound, previousMessages, isFirstSpeaker } = context;
+    
+    let prompt = '';
+    
+    // 基础指令
+    prompt += `【当前阶段】${currentPhase?.name || '讨论'}\n`;
+    prompt += `【讨论主题】${topic}\n`;
+    prompt += `【当前轮次】第 ${currentRound} 轮\n`;
+    prompt += `【你的身份】${role.name}\n\n`;
+    
+    // 如果有历史消息，添加上下文（增强版：包含防重复提醒）
+    if (previousMessages && previousMessages.length > 0) {
+      prompt += `【之前的讨论】\n`;
+      previousMessages.slice(-5).forEach((msg, idx) => {
+        const contentPreview = msg.content.substring(0, 150);
+        prompt += `${idx + 1}. ${msg.roleName || msg.role}: ${contentPreview}${msg.content.length > 150 ? '...' : ''}\n`;
+      });
+      
+      // 🔥 V5.0 新增：提取已使用的关键论点，防止重复
+      const usedPoints = this.extractKeyPointsFromMessages(previousMessages);
+      if (usedPoints.length > 0) {
+        prompt += `\n⚠️ 【已论述的观点（请勿重复）】：\n`;
+        usedPoints.slice(-8).forEach((point, idx) => {
+          prompt += `- ${point}\n`;
+        });
+        prompt += `\n以上观点已被其他角色阐述过，请避免重复相同内容，可以从新的角度或更深层次展开。\n\n`;
+      }
+    }
+    
+    // 根据是否首位发言调整指令（含防重复约束）
+    if (isFirstSpeaker) {
+      prompt += `请作为${role.name}，针对"${topic}"这个话题，提出你的核心观点。\n`;
+      prompt += `要求：\n- 观点明确、逻辑清晰\n- 内容充实、言之有物\n- 避免重复表达\n`;
+    } else {
+      prompt += `基于以上讨论，作为${role.name}，请继续补充你的观点或回应之前的发言。\n`;
+      prompt += `要求：\n- 可以补充新角度、新论据\n- 可以对之前的观点进行延伸或质疑\n- 保持内容简洁、避免冗余\n`;
+      prompt += `- ⚠️ 不要重复前面已经说过的观点和论据\n`;
+      prompt += `- ⚠️ 使用不同的表达方式，避免"首先/其次/最后"的机械结构\n`;
+    }
+    
+    // 输出深度控制
+    const depthInstruction = this.outputDepth === 'brief' 
+      ? '请用简洁的语言回答（200字左右）'
+      : this.outputDepth === 'detailed'
+        ? '请详细阐述你的观点（500-800字）'
+        : '请给出完整深入的分析（800-1200字）';
+    
+    prompt += `\n${depthInstruction}`;
+    
+    return prompt;
+  }
+
+  /**
+   * 🔥 V5.0 新增：从历史消息中提取关键论点（用于上下文记忆）
+   */
+  extractKeyPointsFromMessages(messages) {
+    if (!messages || messages.length === 0) return [];
+    
+    const keyPoints = new Set();
+    
+    messages.forEach(msg => {
+      if (!msg.content) return;
+      
+      // 提取核心观点的模式匹配
+      const patterns = [
+        /(?:核心|关键|主要|重要)[^。]{10,80}/g,  // 核心观点句
+        /(?:认为|指出|强调|表示)[^。]{15,100}/g,  // 观点陈述句
+        /(?:第一|首先|其一|1[.、])[^。]{20,100}/g,  // 第一点
+        /(?:第二|其次|其二|2[.、])[^。]{20,100}/g,  // 第二点
+        /(?:因此|所以|综上|总之)[^。]{15,80}/g,     // 结论句
+      ];
+      
+      patterns.forEach(pattern => {
+        const matches = msg.content.match(pattern);
+        if (matches) {
+          matches.forEach(match => {
+            // 清理并缩短
+            const cleaned = match.trim().slice(0, 60);
+            if (cleaned.length > 10) {
+              keyPoints.add(cleaned);
+            }
+          });
+        }
+      });
+    });
+    
+    // 返回唯一的关键点（最多保留最近15个）
+    return [...keyPoints].slice(-15);
+  }
+
+  /**
+   * 🔥 V4.0 新增：确定消息类型
+   */
+  /**
+   * 🔥 V4.1: 确定消息类型（使用共享常量的 getMessageTypeForRole）
+   */
+  determineMessageType(roleType, isFirstSpeaker) {
+    // 使用共享常量中的函数判断
+    return getMessageTypeForRole(roleType);
   }
 
   /**
@@ -430,7 +758,9 @@ class DebateEngine extends EventEmitter {
     };
 
     this.messages.push(proposal);
-    this.emit('debate:message', proposal);
+
+    // 🔥 BUG-002 FIX: 同上，不再重复发送 debate:message
+    // this.emit('debate:message', proposal); // 已禁用 - 避免与流式输出重复
 
     await this.executeReviewer(proposal);
   }
@@ -487,7 +817,9 @@ class DebateEngine extends EventEmitter {
     };
 
     this.messages.push(review);
-    this.emit('debate:message', review);
+
+    // 🔥 BUG-002 FIX: 同上，不再重复发送 debate:message
+    // this.emit('debate:message', review); // 已禁用 - 避免与流式输出重复
 
     // 🔥 V2.0新增：触发Proposer对Review的回应（增强双向交锋）
     if (review.verdict === 'needs_work' || review.verdict === 'rejected') {
@@ -598,8 +930,10 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
     };
 
     this.messages.push(rebuttal);
-    this.emit('debate:message', rebuttal);
-    console.log(`[DebateEngine] Proposer回应完成 (${content.length} 字符)`);
+
+    // 🔥 BUG-002 FIX: 同上，不再重复发送 debate:message
+    // this.emit('debate:message', rebuttal); // 已禁用 - 避免与流式输出重复
+    console.log(`[DebateEngine] Proposer回应完成 (${content.length} 字符) [仅流式]`);
   }
 
   /**
@@ -966,19 +1300,19 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
           { role: 'system', content: finalSystemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.3,  // 🔥 降低温度减少重复生成
+        temperature: 0.25,  // 🔥 V5.0 进一步降低温度（0.3→0.25）减少重复
         max_tokens: 3500,
-        top_p: 0.85,      // 🔥 降低top_p使采样更集中
-        presence_penalty: 0.1,   // 🔥 降低减少重复
-        frequency_penalty: 0.15, // 🔥 降低减少重复
-        stream: true, // 🔥 关键：启用流式输出
+        top_p: 0.8,       // 🔥 V5.0 降低top_p（0.85→0.8）使采样更集中
+        presence_penalty: 0.4,   // 🔥 V5.0 大幅提升（0.1→0.4）强力抑制主题重复
+        frequency_penalty: 0.5,  // 🔥 V5.0 大幅提升（0.15→0.5）强力抑制词汇重复
+        stream: true,
         signal: controller.signal,
       });
 
       let fullContent = '';
       let chunkCount = 0;
-      let lastChunkContent = '';  // 🔥 新增：记录上一块内容用于去重
-      const DUPLICATE_THRESHOLD = 0.85;  // 相似度阈值
+      let lastChunkContent = '';
+      const DUPLICATE_THRESHOLD = 0.7;  // 🔥 V5.0 降低阈值（0.85→0.7）更严格检测
 
       // 🔥 逐块读取流式数据
       for await (const chunk of stream) {
@@ -1021,15 +1355,23 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
         }
       }
 
-      // 🔥 后处理：清理明显的重复模式
+      // 🔥 后处理：清理明显的重复模式（Level 1-5）
       fullContent = this.backtrackValidator.cleanDuplicatePatterns(fullContent);
+      
+      // 🔥 V3.0 新增：智能文本精炼（句子级去重 + 语义优化）
+      const originalLength = fullContent.length;
+      fullContent = this.backtrackValidator.refineOutputText(fullContent);
+      
+      if (originalLength !== fullContent.length) {
+        console.log(`[DebateEngine] 📝 文本精炼: ${originalLength} → ${fullContent.length} 字符 (去除 ${originalLength - fullContent.length} 字符冗余)`);
+      }
 
       clearTimeout(timeoutId);
       this._currentAbortController = null;
 
       console.log(`\n✅ [DebateEngine] 流式输出完成!`);
       console.log(`[DebateEngine] 总块数: ${chunkCount}`);
-      console.log(`[DebateEngine] 总长度: ${fullContent.length} 字符`);
+      console.log(`[DebateEngine] 最终长度: ${fullContent.length} 字符`);
 
       // 通知前端流式结束
       this.emit('debate:stream:end', {
@@ -1276,7 +1618,37 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
   }
 
   getRole(roleType) {
-    return this.roles.find(r => r.roleType === roleType);
+    if (!roleType) return undefined;
+    
+    const normalizedType = roleType.toLowerCase().trim();
+    
+    let role = this.roles.find(r => {
+      const rt = (r.roleType || '').toLowerCase().trim();
+      return rt === normalizedType;
+    });
+    
+    if (!role) {
+      const aliasMap = {
+        'proposer': ['pro-side', 'proposer', 'proposal', 'positive', '正方', '提案者', '支持方'],
+        'reviewer': ['con-side', 'reviewer', 'review', 'opponent', 'negative', '反方', '审查者', '质疑方', 'con'],
+        'host': ['host', 'moderator', '主持人', 'mod', '裁判', 'judge'],
+      };
+      
+      for (const [canonical, aliases] of Object.entries(aliasMap)) {
+        if (aliases.includes(normalizedType) || canonical === normalizedType) {
+          role = this.roles.find(r => {
+            const rt = (r.roleType || '').toLowerCase().trim();
+            return aliases.includes(rt) || rt === canonical;
+          });
+          if (role) {
+            console.log(`[DebateEngine] 角色映射: ${normalizedType} → ${role.roleType} (${role.name})`);
+            break;
+          }
+        }
+      }
+    }
+    
+    return role;
   }
 
   /**
@@ -1294,7 +1666,14 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
 - 一句话表达核心观点
 - 可以有一个补充说明
 - 不展开详细论证
-- 直击要害，不废话`,
+- 直击要害，不废话
+
+⚠️ 【严格防重复约束】
+1. 禁止使用"非常非常"、"特别特别"等叠词副词
+2. 同一词语在50字内不得重复出现2次以上
+3. 禁止"分析和研究"、"计划和规划"等近义冗余表达
+4. 每个观点只说一次，不要反复强调
+5. 使用多样化的句式，避免"首先...其次...最后"的机械结构`,
       },
       normal: {
         id: 'normal',
@@ -1304,7 +1683,26 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
 - 清晰表达核心观点
 - 给出支撑理由（2-3个要点）
 - 可以有一个简短案例
-- 逻辑清晰，层次分明`,
+- 逻辑清晰，层次分明
+
+⚠️ 【严格防重复约束 - V5.0增强版】
+🚫 绝对禁止的重复模式：
+1. **字符级**：连续3个相同字符（如"的有有有"）
+2. **词语级**：同一实词（名词/动词/形容词）在100字内最多出现2次
+3. **短语级**：禁止"非常重要"、"十分关键"、"极其核心"等程度副词堆砌
+4. **句式级**：相邻两句不能使用相同的主语开头
+5. **段落级**：每个论点只阐述一次，不要换种说法重复
+
+✅ 推荐的多样化表达：
+- 用同义词替换："重要"→"关键/核心/主要/根本/至关重要"
+- 变换句式："A是B"→"B体现了A"/"从A角度看..."
+- 合并冗余："分析和研究"→"深入分析"或"系统研究"
+- 删除废话：去掉"众所周知"、"显然"、"不言而喻"
+
+🎯 质量标准：
+- 信息密度高，无冗余表述
+- 语言自然流畅，不像机器生成
+- 逻辑递进，不原地踏步`,
       },
       detailed: {
         id: 'detailed',
@@ -1316,12 +1714,51 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
 - 引用数据和案例支撑
 - 分析风险和不确定性
 - 给出前瞻性思考
-- 可以使用结构化表达`,
+- 可以使用结构化表达
+
+⚠️ 【严格防重复约束 - V5.0增强版】
+📌 长文本特别注意事项：
+
+🚫 **三级重复检测机制**：
+
+**Level 1 - 微观（字符/词）**
+- 禁止连续重复：好好、常常、往往等叠词（合法叠词除外）
+- 虚词控制："的"字密度<8%，"了"字密度<5%
+- 副词限制：每200字内"非常/特别/十分"总计≤1次
+
+**Level 2 - 中观（句子/段落）**
+- 句子指纹：相邻句子关键词重叠度<60%
+- 论点唯一性：每个核心观点只完整阐述一次
+- 引用规范：同一证据/案例只在最相关位置引用1次
+
+**Level 3 - 宏观（篇章）**
+- 结构避免：不要每段都用"首先/其次/最后"
+- 主题词分散：核心术语在全文字频均匀分布，不要集中堆在某段
+- 语义推进：每段都要有新信息增量，不要"换汤不换药"
+
+✅ **高质量写作技巧**：
+1. **同义词库**：
+   - 重要：关键、核心、主要、根本、至关重要、举足轻重
+   - 分析：剖析、探究、考察、审视、解读、研讨
+   - 影响：作用、效应、效果、意义、价值、冲击
+   
+2. **句式变换矩阵**：
+   - 主动句↔被动句
+   - 长句↔短句结合
+   - 陈述句↔设问句/反问句
+   - 正说↔反说（"之所以...是因为..." ↔ "如果不...就..."）
+
+3. **信息增量原则**：
+   - 每新的一段都必须提供前文未覆盖的信息
+   - 如果发现要重复前面的内容，改为"如前所述（见第X点）"一笔带过
+
+🎯 最终检验标准：
+读完全文，如果感觉任何一段可以删除而不影响理解，那就是冗余，应该删掉。`,
       },
     };
 
     const config = depthConfigs[depth] || depthConfigs.normal;
-    console.log(`[DebateEngine] 使用输出深度配置: ${config.name}`);
+    console.log(`[DebateEngine] 使用输出深度配置: ${config.name} (含V5.0防重复约束)`);
     return config.instruction;
   }
 
@@ -2336,46 +2773,327 @@ class BacktrackValidator {
       .trim();
   }
 
-  // 🔥 新增：检测重复内容
+  // 🔥 V5.0 超级增强版：检测重复内容（6级检测体系）
   detectRepetition(newContent, lastContent) {
     if (!newContent || !lastContent) return false;
 
-    // 检查是否有超过3个连续重复的字符
-    const combined = lastContent.slice(-5) + newContent.slice(0, 5);
+    const combined = lastContent.slice(-12) + newContent.slice(0, 12);
+
+    // ========== Level 1: 字符级暴力重复（同一字符连续3次+） ==========
     const charCount = {};
     for (const char of combined) {
       charCount[char] = (charCount[char] || 0) + 1;
-      if (charCount[char] >= 4) {  // 同一字符出现4次以上
+      if (charCount[char] >= 3) {
+        console.log(`[BacktrackValidator] L1-字符重复检测: "${char}"连续${charCount[char]}次`);
         return true;
       }
     }
 
-    // 检查是否有重复的2-3个字符的模式
-    for (let len = 2; len <= 3; len++) {
-      const last5 = lastContent.slice(-5);
-      const first5 = newContent.slice(0, 5);
-      for (let i = 0; i <= last5.length - len; i++) {
-        const pattern = last5.slice(i, i + len);
-        if (first5.includes(pattern + pattern)) {  // 模式重复出现
-          return true;
+    // ========== Level 2: 短语模式重复（2-6字模式） ==========
+    for (let len = 2; len <= Math.min(6, newContent.length); len++) {
+      const lastPart = lastContent.slice(-8);
+      const firstPart = newContent.slice(0, 8);
+      
+      for (let i = 0; i <= lastPart.length - len; i++) {
+        const pattern = lastPart.slice(i, i + len);
+        // 检查是否在新内容开头重复出现
+        if (firstPart.includes(pattern) && pattern.length >= 2) {
+          const regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '{2,}');
+          if (regex.test(firstPart)) {
+            console.log(`[BacktrackValidator] L2-短语模式重复: "${pattern}"`);
+            return true;
+          }
         }
       }
+    }
+
+    // ========== Level 3: 中文叠词/冗余表达检测（增强版） ==========
+    const redundantPatterns = [
+      // 叠词副词
+      /(?:非常|特别|十分|极其|相当|比较){2,}/,
+      /(?:好好|常常|往往|刚刚|渐渐|慢慢|快快|频频|屡屡){2,}/,
+      // 动词重复
+      /(?:分析和|研究并|计划与|规划及|考虑和|讨论并){2,}/,
+      // 虚词堆砌
+      /(?:的{2,}|了{2,}|是{2,}|在{2,}|有{2,}|和{2,})/,
+      // 程度副词+主题词重复
+      /(?:重要|关键|核心|主要|基本|根本){2,}.*?(?:重要|关键|核心|主要|基本|根本)/,
+      // 新增：常见AI生成冗余模式
+      /(?:值得注意的是|需要指出的是|众所周知|显而易见|不言而喻){2,}/,
+      /(?:首先.*?其次.*?最后).*?\1/,  // 结构化重复
+      /(?:一方面.*?另一方面){2,}/,     // 对比结构重复
+    ];
+
+    for (const pattern of redundantPatterns) {
+      if (pattern.test(combined)) {
+        console.log(`[BacktrackValidator] L3-冗余模式匹配: ${pattern}`);
+        return true;
+      }
+    }
+
+    // ========== Level 4: 编辑距离/相似度检测（严格化） ==========
+    if (newContent.length >= 4 && lastContent.length >= 4) {
+      const similarity = this.calculateChunkSimilarity(
+        lastContent.slice(-8),
+        newContent.slice(0, 8)
+      );
+      
+      // 🔥 V5.0 降低阈值：从0.85降至0.7
+      if (similarity > 0.7) {
+        console.log(`[BacktrackValidator] L4-相似度超标: ${(similarity * 100).toFixed(1)}% > 70%`);
+        return true;
+      }
+    }
+
+    // ========== Level 5: N-gram重叠检测（新增） ==========
+    const ngramOverlap = this.checkNgramOverlap(lastContent.slice(-10), newContent.slice(0, 10), 3);
+    if (ngramOverlap > 0.6) {
+      console.log(`[BacktrackValidator] L5-Ngram重叠过高: ${(ngramOverlap * 100).toFixed(1)}%`);
+      return true;
+    }
+
+    // ========== Level 6: 语义指纹检测（新增） ==========
+    const lastFingerprint = this.generateTextFingerprint(lastContent.slice(-15));
+    const newFingerprint = this.generateTextFingerprint(newContent.slice(0, 15));
+    
+    if (lastFingerprint === newFingerprint && lastFingerprint.length > 5) {
+      console.log(`[BacktrackValidator] L6-语义指纹完全相同`);
+      return true;
     }
 
     return false;
   }
 
-  // 🔥 新增：后处理清理重复模式
+  // 🔥 V5.0 新增：N-gram重叠度计算
+  checkNgramOverlap(text1, text2, n = 3) {
+    if (!text1 || !text2 || text1.length < n || text2.length < n) return 0;
+
+    const getNgrams = (text) => {
+      const ngrams = new Set();
+      for (let i = 0; i <= text.length - n; i++) {
+        ngrams.add(text.slice(i, i + n));
+      }
+      return ngrams;
+    };
+
+    const ngrams1 = getNgrams(text1);
+    const ngrams2 = getNgrams(text2);
+
+    const intersection = [...ngrams1].filter(x => ngrams2.has(x)).length;
+    const union = new Set([...ngrams1, ...ngrams2]).size;
+
+    return union > 0 ? intersection / union : 0;
+  }
+
+  // 🔥 V5.0 新增：生成文本指纹（用于快速语义去重）
+  generateTextFingerprint(text) {
+    if (!text) return '';
+    
+    // 提取关键特征：去除虚词、标点，保留实词的前几个字
+    return text
+      .replace(/[的了吗呢吧啊哈呀哦嘛呗，。！？、；：""''（）【】]/g, '')
+      .replace(/\s+/g, '')
+      .slice(0, 20)
+      .toLowerCase();
+  }
+
+  // 🔥 新增：计算两个短文本的相似度
+  calculateChunkSimilarity(a, b) {
+    if (!a || !b) return 0;
+    const setA = new Set(a.split(''));
+    const setB = new Set(b.split(''));
+    const intersection = [...setA].filter(x => setB.has(x)).length;
+    const union = new Set([...setA, ...setB]).size;
+    return union > 0 ? intersection / union : 0;
+  }
+
+  // 🔥 V5.0 超级增强版：后处理清理重复模式（7级清理体系）
   cleanDuplicatePatterns(text) {
     if (!text) return text;
 
-    // 清理连续重复超过2次的字符（如"的有有有" -> "的有"）
-    let result = text.replace(/(.)\1{2,}/g, '$1$1');
+    let result = text;
+    let originalLength = result.length;
 
-    // 清理连续的词语重复（如"审查审查" -> "审查"）
+    // ========== Level 1: 字符级暴力去重 ==========
+    // 连续重复超过2次的字符（如"的有有有" -> "的有"）
+    result = result.replace(/(.)\1{2,}/g, '$1$1');
+
+    // ========== Level 2: 词语级去重 ==========
+    // 完全相同的词语连续重复2+次
     result = result.replace(/(\S{2,})\1{2,}/g, '$1');
 
-    return result;
+    // ========== Level 3: 中文叠词/冗余表达优化（全面版） ==========
+    
+    // 副词重复："非常非常" -> "非常"
+    result = result.replace(/(非常|特别|十分|极其|相当|比较|稍微|略微|格外|尤其)\1+/g, '$1');
+    
+    // 动词重叠："研究研究" -> "研究"（保留合法叠词如"好好"、"慢慢"）
+    const verbRepeatPattern = /(研究|分析|讨论|考虑|计划|规划|设计|开发|测试|审查|评估|检查|实施|执行|制定|建立|构建|创建)\1/g;
+    result = result.replace(verbRepeatPattern, '$1');
+    
+    // 虚词重复：多个"的"、"了"、"是"
+    result = result.replace(/的{2,}/g, '的');
+    result = result.replace(/了{2,}/g, '了');
+    result = result.replace(/是{2,}/g, '是');
+    result = result.replace(/在{2,}/g, '在');
+    result = result.replace(/和{2,}/g, '和');
+    result = result.replace(/与{2,}/g, '与');
+    result = result.replace(/或{2,}/g, '或');
+
+    // ========== Level 4: 语义冗余优化（智能合并） ==========
+    
+    // 近义动词并列冗余："分析和研究" -> "分析研究" 或 "分析"
+    const verbRedundancyMap = [
+      [ /分析和研究/g, '分析研究' ],
+      [ /研究和分析/g, '系统研究' ],
+      [ /计划和规划/g, '统筹规划' ],
+      [ /规划和计划/g, '详细计划' ],
+      [ /考虑和思考/g, '深入思考' ],
+      [ /思考和考虑/g, '审慎考虑' ],
+      [ /设计与实现/g, '设计实现' ],
+      [ /制定和实施/g, '制定实施' ],
+      [ /检查和验证/g, '检验验证' ],
+      [ /测试和验证/g, '测试验证' ],
+      [ /分析和评估/g, '分析评估' ],
+      [ /讨论和交流/g, '研讨交流' ],
+    ];
+    
+    verbRedundancyMap.forEach(([pattern, replacement]) => {
+      result = result.replace(pattern, replacement);
+    });
+
+    // 主题词重复："核心的核心" -> "核心"
+    result = result.replace(/(核心|关键|重要|主要|基本|根本|首要)(之\1|之\2)?\1/g, '$1');
+    
+    // 程度副词堆砌："非常十分重要" -> "十分重要"
+    result = result.replace(/(非常|特别|十分|极其|相当)+(重要|关键|核心|主要|必要|紧迫)/g, '$2');
+
+    // 新增：常见AI生成废话删除
+    const fillerPhrases = [
+      /众所周知，?/g,
+      /显而易见，?/g,
+      /不言而喻，?/g,
+      /值得注意的是，?/g,
+      /需要指出的是，?/g,
+      /事实上，?/g,
+      /实际上，?/g,
+      /总的来说，?/g,
+      /综上所述，?(?!以上)/g,  // 保留"综上所述以上"
+    ];
+    
+    fillerPhrases.forEach(pattern => {
+      result = result.replace(pattern, '');
+    });
+
+    // ========== Level 5: 句式规范化 ==========
+    
+    // 清理多余的空格和换行
+    result = result.replace(/[ \t]+/g, ' ');
+    result = result.replace(/\n{3,}/g, '\n\n');
+    
+    // 清理标点符号重复
+    result = result.replace(/。{2,}/g, '。');
+    result = result.replace(/，{2,}/g, '，');
+    result = result.replace(/、{2,}/g, '、');
+    result = result.replace(/…{2,}/g, '……');
+    result = result.replace(/！！+/g, '！');
+    result = result.replace(/？？+/g, '？');
+
+    // ========== Level 6: 结构化重复清理（新增） ==========
+    
+    // 清理重复的过渡词："首先...首先..." -> "首先..."
+    result = result.replace(/(首先)[^\n]*?\n\s*(首先)/g, '$1');
+    result = result.replace(/(其次)[^\n]*?\n\s*(其次)/g, '$1');
+    result = result.replace(/(最后)[^\n]*?\n\s*(最后)/g, '$1');
+    
+    // 清理重复的引用标记
+    result = result.replace(/("[^"]+")[^"]*\1/g, '$1');
+
+    // 🔥 BUG-003 FIX: 新增 - AI模型常见重复模式清理
+    
+    // 清理重复的总结性短语
+    const summaryPatterns = [
+      /(?:综上所述|总而言之|一言以蔽之|简而言之|概括来说)[^\n]*?\n\s*(?:综上所述|总而言之|一言以蔽之|简而言之|概括来说)/g,
+      /(?:总之|故而|因此|所以)[^\n]*?\n\s*(?:总之|故而|因此|所以)/g,
+    ];
+    summaryPatterns.forEach(p => result = result.replace(p, '$1'));
+
+    // 清理重复的序号词
+    result = result.replace(/(?:第一|首先|其一)[^\n]*?\n\s*(?:第一|首先|其一)/g, '$1');
+    result = result.replace(/(?:第二|其次|其二)[^\n]*?\n\s*(?:第二|其次|其二)/g, '$1');
+    result = result.replace(/(?:第三|再次|其三)[^\n]*?\n\s*(?:第三|再次|其三)/g, '$1');
+
+    // 清理重复的Markdown加粗标记：**text** **text** -> **text**
+    result = result.replace(/(\*\*[^*]+\*\*)\s+\1+/g, '$1');
+
+    // 清理重复的括号说明：（text）（text）->（text）
+    result = result.replace(/（[^）]+）\s*（\1）/g, '（$1）');
+
+    // ========== Level 7: 智能压缩（信息无损前提下的精简） ==========
+    
+    // 合并连续的短句（每句<15字且语义相似）
+    const sentences = result.split(/(?<=[。！？])/);
+    const compressedSentences = [];
+    
+    for (let i = 0; i < sentences.length; i++) {
+      const current = sentences[i].trim();
+      
+      if (current.length < 10 && i > 0) {
+        // 短句尝试与前一句合并
+        const prev = compressedSentences[compressedSentences.length - 1];
+        if (prev && prev.length < 30 && !prev.endsWith('。')) {
+          compressedSentences[compressedSentences.length - 1] = prev + current;
+          continue;
+        }
+      }
+      
+      if (current.length > 0) {
+        compressedSentences.push(current);
+      }
+    }
+    
+    result = compressedSentences.join('');
+
+    // 记录清理效果
+    const cleanedChars = originalLength - result.length;
+    if (cleanedChars > 0) {
+      console.log(`[BacktrackValidator] 🧹 后处理清理: 去除 ${cleanedChars} 字符冗余 (${((cleanedChars/originalLength)*100).toFixed(1)}%)`);
+    }
+
+    return result.trim();
+  }
+
+  // 🔥 V3.0 新增：智能文本精炼器（最终输出前调用）
+  refineOutputText(text) {
+    if (!text || text.length < 20) return text;
+
+    let result = this.cleanDuplicatePatterns(text);
+
+    // 按句子分割，检测相邻句相似度
+    const sentences = result.split(/(?<=[。！？\n])/).filter(s => s.trim().length > 5);
+    const uniqueSentences = [];
+    const seenPatterns = new Set();
+
+    for (const sentence of sentences) {
+      // 生成句子指纹（取关键词）
+      const fingerprint = sentence
+        .replace(/[的了吗呢吧啊哈呀哦]/g, '')
+        .slice(0, 30)
+        .trim();
+      
+      if (fingerprint && !seenPatterns.has(fingerprint)) {
+        seenPatterns.add(fingerprint);
+        uniqueSentences.push(sentence);
+      }
+      // 跳过高度相似的句子（简单实现）
+    }
+
+    // 如果去重后内容太短，返回原文本的基础清理版本
+    if (uniqueSentences.join('').length < result.length * 0.6) {
+      return result;
+    }
+
+    return uniqueSentences.join('');
   }
 
   extractKeywords(text) {
