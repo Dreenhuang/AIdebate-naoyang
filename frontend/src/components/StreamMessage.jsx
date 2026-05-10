@@ -33,7 +33,8 @@ export default function StreamMessage() {
     }
   }, [isStreaming]);
 
-  if (!isStreaming || !streamContent) return null;
+  //  关键修复：移除 || !streamContent 条件，让组件在流式状态下始终渲染
+  if (!isStreaming) return null;
 
   // 🔥 简化版：直接显示为纯文本（最安全的方式）
   // 避免 ReactMarkdown 解析错误导致崩溃

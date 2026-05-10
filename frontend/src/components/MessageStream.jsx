@@ -99,8 +99,18 @@ export default function MessageStream() {
         <div className={`border-r border-border-primary overflow-y-auto bg-bg-primary transition-all duration-300 ${isStreaming ? 'w-[30%]' : 'w-0 border-none'}`}>
           {isStreaming && (
             <div className="p-4">
-              {/* 🔥 V2.2 新增：流式输出显示 */}
-              <StreamMessage />
+              {/* 🔥 修复：有流式内容时显示内容，否则显示加载动画 */}
+              {streamContent ? (
+                <StreamMessage content={streamContent} phase={streamPhase} role={streamRole} />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="mb-4">
+                    <Loader2 size={32} className="animate-spin text-brand-primary mx-auto" />
+                  </div>
+                  <p className="text-sm text-text-muted">AI 正在思考...</p>
+                  <p className="text-xs text-text-muted/70 mt-1">即将完成...</p>
+                </div>
+              )}
             </div>
           )}
         </div>
