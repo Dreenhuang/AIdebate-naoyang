@@ -6,6 +6,7 @@ import EmptyConsensusPlaceholder from './EmptyConsensusPlaceholder';
 export default function ConsensusPanel() {
   const { consensus, backtrackResults, debateStatus } = useDebateStore();
   const [expandedCheck, setExpandedCheck] = useState(null);
+  const [expandedPhase, setExpandedPhase] = useState(null);
 
   // 辩论未开始或没有共识时显示占位动画
   if (debateStatus === 'idle' || consensus.length === 0) {
@@ -22,38 +23,105 @@ export default function ConsensusPanel() {
           <h3 className="text-sm font-medium flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-success" />
             阶段共识
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary">
+              {consensus.length}个阶段
+            </span>
           </h3>
           <span className="text-xs px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary">
             {latestConsensus.phaseName}
           </span>
         </div>
 
-        {/* 共识摘要 */}
-        <div className="text-sm text-text-secondary bg-bg-tertiary rounded p-3 leading-relaxed">
-          {latestConsensus.summary || '共识生成中...'}
-        </div>
-
-        {/* 承诺列表 */}
-        {latestConsensus.commitments && latestConsensus.commitments.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-xs font-medium text-text-muted flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5" />
-              核心承诺 ({latestConsensus.commitments.length})
-            </h4>
-            <div className="space-y-1.5">
-              {latestConsensus.commitments.map((commitment, index) => (
-                <div key={index} className="flex items-start gap-2 text-xs group">
-                  <span className="w-5 h-5 flex-shrink-0 rounded-full bg-success/20 text-success flex items-center justify-center text-[10px] font-bold mt-0.5">
-                    {index + 1}
+        {/* 🔥 修复：显示所有共识阶段（可折叠） */}
+        <div className="space-y-2">
+          {consensus.map((phaseConsensus, idx) => (
+            <div key={idx} className="border border-border-primary/50 rounded-lg overflow-hidden">
+              {/* 阶段头部 - 可点击展开 */}
+              <div 
+                className="px-3 py-2 bg-bg-tertiary/50 cursor-pointer flex items-center justify-between hover:bg-bg-tertiary transition-colors"
+                onClick={() => setExpandedPhase(expandedPhase === idx ? null : idx)}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${
+                    idx === consensus.length - 1 
+                      ? 'bg-brand-primary text-white' 
+                      : 'bg-bg-tertiary text-text-secondary'
+                  }`}>
+                    {idx + 1}
                   </span>
-                  <span className="text-text-secondary group-hover:text-text-primary transition-colors flex-1">
-                    {commitment}
-                  </span>
+                  <span className="text-xs font-medium">{phaseConsensus.phaseName}</span>
+                  <span className="text-[10px] text-text-muted">第{phaseConsensus.round}轮</span>
                 </div>
-              ))}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-text-muted">
+                    {phaseConsensus.commitments?.length || 0}项承诺
+                  </span>
+                  {expandedPhase === idx ? (
+                    <ChevronUp className="w-3.5 h-3.5 text-text-muted" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
+                  )}
+                </div>
+              </div>
+              
+              {/* 展开的详细内容 */}
+              {expandedPhase === idx && (
+                <div className="border-t border-border-primary/30 p-3 space-y-3">
+                  {/* 共识摘要 */}
+                  <div className="text-sm text-text-secondary bg-bg-tertiary rounded p-3 leading-relaxed">
+                    {phaseConsensus.summary || '本阶段暂无共识摘要'}
+                  </div>
+                  
+                  {/* 🔥 新增：显示每角色摘要 */}
+                  {phaseConsensus.roleSummaries && Object.keys(phaseConsensus.roleSummaries).length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-medium text-text-muted flex items-center gap-1.5">
+                        <Info className="w-3.5 h-3.5" />
+                        各角色发言统计
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.entries(phaseConsensus.roleSummaries).map(([role, info]) => (
+                          <div key={role} className="bg-bg-tertiary/50 rounded p-2 text-xs">
+                            <div className="font-medium text-text-primary mb-1">
+                              {info.displayName || role}
+                            </div>
+                            <div className="text-text-muted text-[10px] space-y-0.5">
+                              <div>消息数：{info.messageCount}条</div>
+                              <div>总字数：{info.totalChars}字</div>
+                              <div className="truncate">{info.briefSummary}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* 承诺列表 */}
+                  {phaseConsensus.commitments && phaseConsensus.commitments.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-medium text-text-muted flex items-center gap-1.5">
+                        <Shield className="w-3.5 h-3.5" />
+                        核心承诺 ({phaseConsensus.commitments.length})
+                      </h4>
+                      <div className="space-y-1.5">
+                        {phaseConsensus.commitments.map((commitment, cidx) => (
+                          <div key={cidx} className="flex items-start gap-2 text-xs group">
+                            <span className="w-5 h-5 flex-shrink-0 rounded-full bg-success/20 text-success flex items-center justify-center text-[10px] font-bold mt-0.5">
+                              {cidx + 1}
+                            </span>
+                            <span className="text-text-secondary group-hover:text-text-primary transition-colors flex-1">
+                              {typeof commitment === 'string' ? commitment : commitment.text || JSON.stringify(commitment)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          ))}
+        </div>
 
         {/* 回溯校验结果 - 增强版 */}
         {latestBacktrack && (

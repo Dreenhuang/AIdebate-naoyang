@@ -58,6 +58,46 @@ router.post('/pdf', async (req, res) => {
   }
 });
 
+router.post('/docx', async (req, res) => {
+  try {
+    const debateData = req.body;
+
+    if (!debateData || Object.keys(debateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '请求体不能为空',
+      });
+    }
+
+    const result = await exportService.exportToDocx(debateData);
+
+    if (result.success && result.buffer) {
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      );
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="debate.docx"'
+      );
+      return res.send(result.buffer);
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: 'DOCX 导出失败',
+        error: result.error || '未知错误',
+      });
+    }
+  } catch (error) {
+    console.error('[Export] DOCX error:', error);
+    return res.status(500).json({
+      success: false,
+      message: '导出过程中发生错误',
+      error: error.message,
+    });
+  }
+});
+
 router.get('/list', async (req, res) => {
   try {
     const list = await exportService.getExportList();

@@ -15,10 +15,10 @@ export default function Header() {
   return (
     <header className="header">
       {/* 左侧：Logo 和标题 */}
-      <div className="flex items-center gap-3">
-        <img src="/logo-512.png" alt="脑痒Logo" className="w-8 h-8" />
-        <h1 className="text-h4 font-semibold text-text-primary">脑痒</h1>
-        <span className="text-small text-text-secondary hidden sm:inline">脑痒是长脑子的前兆</span>
+      <div className="flex items-end gap-3">
+        <img src="/logo-512.png" alt="脑痒痒Logo" className="w-8 h-8 align-bottom" />
+        <h1 className="text-h3 font-semibold text-text-primary">脑痒痒</h1>
+        <span className="text-sm text-text-secondary hidden sm:inline align-bottom">脑痒痒是长脑子的前兆</span>
       </div>
       
       {/* 右侧：功能按钮区域 */}

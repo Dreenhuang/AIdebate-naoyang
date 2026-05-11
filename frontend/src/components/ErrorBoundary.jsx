@@ -1,112 +1,65 @@
+/**
+ * 简化版错误边界
+ * 核心功能：捕获错误但不阻塞内容显示
+ */
 import { Component } from 'react';
 
-/**
- * 🔥 V2.2 新增：React Error Boundary
- * 防止组件崩溃导致整个应用白屏
- * 捕获子组件的 JavaScript 错误，显示友好的错误提示
- */
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
     this.state = {
       hasError: false,
       error: null,
-      errorInfo: null,
     };
   }
 
   static getDerivedStateFromError(error) {
+    // 更新状态，使下一次渲染可以显示降级 UI
     return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[ErrorBoundary] Caught error:', error, errorInfo);
-    this.setState({
-      errorInfo,
-    });
-
-    // 如果有回调函数，调用它
-    if (this.props.onError) {
-      this.props.onError(error, errorInfo);
-    }
+    // 记录错误到控制台
+    console.error('[ErrorBoundary] 捕获到错误:', error);
+    console.error('[ErrorBoundary] 错误详情:', errorInfo);
   }
 
   resetError = () => {
     this.setState({
       hasError: false,
       error: null,
-      errorInfo: null,
     });
   };
 
   render() {
     if (this.state.hasError) {
-      // 自定义错误 UI
-      if (this.props.fallback) {
-        return this.props.fallback({
-          error: this.state.error,
-          errorInfo: this.state.errorInfo,
-          resetError: this.resetError,
-        });
-      }
-
-      // 默认错误 UI
+      // 简化的错误 UI - 提供重试按钮
       return (
-        <div style={{
-          padding: '20px',
-          margin: '20px',
-          border: '1px solid #e74c3c',
-          borderRadius: '8px',
-          backgroundColor: '#fdf2f2',
-          color: '#c0392b',
-        }}>
-          <h2 style={{ marginBottom: '10px' }}>
-            ⚠️ 渲染出错了
-          </h2>
-          <p style={{ marginBottom: '10px', fontSize: '14px', color: '#666' }}>
-            抱歉，页面在渲染过程中遇到了一个错误。这通常是由于 AI 回复内容包含无法处理的格式导致的。
-          </p>
+        <div className="p-4 m-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+          <h3 className="text-yellow-800 font-bold mb-2">⚠️ 显示出现小问题</h3>
+          <p className="text-yellow-700 text-sm mb-3">AI 回复内容可能包含特殊格式，但不影响核心功能。</p>
+          <div className="flex gap-2">
+            <button
+              onClick={this.resetError}
+              className="px-3 py-1.5 bg-yellow-500 text-white rounded-lg text-sm hover:bg-yellow-600"
+            >
+              重试显示
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600"
+            >
+              刷新页面
+            </button>
+          </div>
           {this.state.error && (
-            <details style={{
-              marginTop: '10px',
-              padding: '10px',
-              backgroundColor: '#f8f8f8',
-              borderRadius: '4px',
-              fontSize: '12px',
-            }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
-                查看错误详情
-              </summary>
-              <pre style={{
-                marginTop: '10px',
-                padding: '10px',
-                backgroundColor: '#fff',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                overflow: 'auto',
-                fontSize: '11px',
-                maxHeight: '200px',
-              }}>
-                {this.state.error.toString()}
-                {this.state.errorInfo?.componentStack}
+            <details className="mt-3">
+              <summary className="text-xs text-yellow-600 cursor-pointer">查看错误详情（供调试）</summary>
+              <pre className="mt-2 p-2 bg-white rounded text-xs overflow-auto max-h-40">
+                {this.state.error?.toString()}
               </pre>
             </details>
           )}
-          <button
-            onClick={this.resetError}
-            style={{
-              marginTop: '15px',
-              padding: '8px 16px',
-              backgroundColor: '#3498db',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '14px',
-            }}
-          >
-            重新尝试
-          </button>
         </div>
       );
     }
@@ -116,16 +69,3 @@ class ErrorBoundary extends Component {
 }
 
 export default ErrorBoundary;
-
-/**
- * 🔥 HOC 版本：包装任何组件添加错误边界
- */
-export function withErrorBoundary(Component, fallback, onError) {
-  return function WrappedComponent(props) {
-    return (
-      <ErrorBoundary fallback={fallback} onError={onError}>
-        <Component {...props} />
-      </ErrorBoundary>
-    );
-  };
-}

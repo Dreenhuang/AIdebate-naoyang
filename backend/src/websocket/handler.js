@@ -79,6 +79,8 @@ class WebSocketHandler {
         outputDepth: config.outputDepth || 'normal',
         modeId: config.modeId,
         displayStyle: config.displayStyle,
+        // 🔥 V8.0 新增：传递完整模式配置（含flow流程）
+        modeConfig: config.modeConfig || null,
       });
 
       this.setupDebateEngineListeners();

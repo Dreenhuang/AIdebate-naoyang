@@ -49,6 +49,7 @@ export function useWebSocket() {
     addConsensus: null,
     addBacktrackResult: null,
     setFiles: null,  // 🔥 新增：文件列表更新
+    setPhases: null, // 🔥 新增：设置辩论阶段
     // 🔥 V2.2 新增：流式输出
     startStream: null,
     appendStreamChunk: null,
@@ -66,6 +67,7 @@ export function useWebSocket() {
     setRound,
     setTotalPhases,
     setTotalRounds,
+    setPhases,
     addCommitment,
     addConsensus,
     addBacktrackResult,
@@ -88,6 +90,7 @@ export function useWebSocket() {
       setRound,
       setTotalPhases,
       setTotalRounds,
+      setPhases,
       addCommitment,
       addConsensus,
       addBacktrackResult,
@@ -99,7 +102,7 @@ export function useWebSocket() {
       cancelStream,
       setStreamMeta, // 🔥 V2.2 新增
     };
-  }, [setWsConnected, setWsReconnecting, addMessage, setDebateStatus, setPhase, setRound, setTotalPhases, setTotalRounds, addCommitment, addConsensus, addBacktrackResult, setFiles, startStream, appendStreamChunk, endStream, cancelStream, setStreamMeta]);
+  }, [setWsConnected, setWsReconnecting, addMessage, setDebateStatus, setPhase, setRound, setTotalPhases, setTotalRounds, setPhases, addCommitment, addConsensus, addBacktrackResult, setFiles, startStream, appendStreamChunk, endStream, cancelStream, setStreamMeta]);
 
   const clearReconnectTimer = useCallback(() => {
     if (reconnectTimer.current) {
@@ -160,11 +163,12 @@ export function useWebSocket() {
           switch (type) {
             case 'debate:started':
               storeActions.current.setDebateStatus?.('running');
-              // 🔥 修复：phases 是数组，应该取长度或直接使用 totalPhases
+              // 🔥 修复：设置辩论阶段
+              if (payload?.phases && Array.isArray(payload.phases)) {
+                storeActions.current.setPhases?.(payload.phases);
+              }
               if (payload?.totalPhases !== undefined) {
                 storeActions.current.setTotalPhases?.(payload.totalPhases);
-              } else if (payload?.phases && Array.isArray(payload.phases)) {
-                storeActions.current.setTotalPhases?.(payload.phases.length);
               }
               if (payload?.totalRounds) {
                 storeActions.current.setTotalRounds?.(payload.totalRounds);

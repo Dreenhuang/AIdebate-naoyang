@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { getRandomSoulPreset, getSoulPresetById, soulPresets } from '../data/soulPresets';
+import { getRandomSoulPreset, getSoulPresetById, soulPresets, getRandomSoul, getSoulById } from '../data/soulPresets';
+import { getMappedRoleType } from '../data/discussionModes';
 import { getSoulVersionManager } from '../data/soulVersionManager';
 
 export const useDebateStore = create((set, get) => ({
@@ -75,6 +76,7 @@ export const useDebateStore = create((set, get) => ({
   setRound: (round) => set({ currentRound: round }),
   setTotalPhases: (total) => set({ totalPhases: total }),
   setTotalRounds: (total) => set({ totalRounds: total }),
+  setPhases: (phases) => set({ phases: Array.isArray(phases) ? phases : [] }), // 🔥 新增：设置辩论阶段
 
   addMessage: (message) => set((state) => {
     // BUG-002 FIX: 防御性去重 - 检查是否已存在完全相同的消息
@@ -117,12 +119,13 @@ export const useDebateStore = create((set, get) => ({
   setFiles: (files) => set({ files }),
 
   // V2.2 修复：流式输出 Actions
-  startStream: () => set({
+  startStream: () => set((state) => ({
     isStreaming: true,
     streamContent: '',
     canCancel: true,
-    streamMessageId: null, // 将在 setStreamMeta 中设置
-  }),
+    // 保留已由 setStreamMeta 设置的 streamMessageId，不重置
+    streamMessageId: state.streamMessageId || `proposer-0-${Date.now()}`,
+  })),
 
   setStreamMeta: (meta) => set((state) => ({
     // 根据元数据创建消息ID
@@ -151,6 +154,18 @@ export const useDebateStore = create((set, get) => ({
       const content = state.streamContent;
       const messageId = state.streamMessageId;
 
+      // 防御性检查：防止重复添加同一条消息
+      const isAlreadyAdded = state.messages.some(msg => msg.id === messageId);
+      if (isAlreadyAdded) {
+        console.warn(`[DebateStore] 消息 ${messageId} 已存在，跳过重复添加`);
+        return {
+          isStreaming: false,
+          streamContent: '',
+          canCancel: false,
+          streamMessageId: null,
+        };
+      }
+
       // 如果有流式内容，创建正式消息
       if (content && messageId) {
         // 从 messageId 提取角色信息（格式：phaseId-roleType-round-timestamp）
@@ -158,9 +173,6 @@ export const useDebateStore = create((set, get) => ({
         const roleType = parts[1] || 'proposer';
         const phase = parseInt(parts[0]) || 0;
         const round = parseInt(parts[2]) || 0;
-
-        // V8.0 极简版：直接使用原始内容，不做精炼
-        // 原则：程序可用性优先，不要复杂逻辑导致问题
 
         const newMessage = {
           id: messageId,
@@ -170,7 +182,7 @@ export const useDebateStore = create((set, get) => ({
           phase: phase,
           round: round,
           phaseId: state.phases[phase]?.id || 'probe',
-          content: content, // 直接使用原始内容
+          content: content,
           timestamp: new Date().toISOString(),
         };
 
@@ -192,13 +204,12 @@ export const useDebateStore = create((set, get) => ({
       };
     } catch (error) {
       console.error(' [DebateStore] endStream 错误:', error);
-      // 出错时重置流式状态，保留已有消息
       return {
         isStreaming: false,
         streamContent: '',
         canCancel: false,
         streamMessageId: null,
-        error: error.message, // 记录错误信息
+        error: error.message,
       };
     }
   }),
@@ -309,9 +320,12 @@ export const useDebateStore = create((set, get) => ({
     config: {
       ...state.config,
       roles: state.config.roles.map(r => {
-        const randomPreset = getRandomSoulPreset(r.roleType || 'host');
-        return randomPreset
-          ? { ...r, soul: randomPreset.soul, soulPresetId: randomPreset.id, name: randomPreset.name }
+        // V3.0 使用映射系统确保角色类型正确
+        const mappedType = getMappedRoleType(r.roleType || 'host');
+        const randomSoul = getRandomSoul(mappedType);
+
+        return randomSoul
+          ? { ...r, roleType: mappedType, soul: randomSoul.soul, soulPresetId: randomSoul.id, name: randomSoul.name }
           : r;
       })
     }

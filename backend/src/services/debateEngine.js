@@ -100,6 +100,22 @@ class DebateEngine extends EventEmitter {
     this.modeId = config.modeId;
     this.displayStyle = config.displayStyle;
 
+    // 🔥 V8.0 新增：流程配置（支持主持人角色调度）
+    this.modeConfig = config.modeConfig || null;  // 完整的模式配置（含flow）
+    this.flowConfig = config.modeConfig?.flow || [];  // 流程步骤数组
+    this.currentFlowStep = 0;  // 当前执行到的流程步骤
+    this.hostRole = null;  // 缓存主持人角色
+    this.hasHostRole = false;  // 是否有主持人角色
+
+    // 预检查：是否有主持人角色
+    if (this.roles && this.roles.length > 0) {
+      this.hostRole = this.roles.find(r => isHostRole(r.roleType));
+      this.hasHostRole = !!this.hostRole;
+      if (this.hasHostRole) {
+        console.log(`[DebateEngine] 🎙️ 检测到主持人角色: ${this.hostRole.name} (${this.hostRole.roleType})`);
+      }
+    }
+
     // 状态
     this.status = 'idle';
     this.currentPhase = 0;
@@ -206,7 +222,8 @@ class DebateEngine extends EventEmitter {
   }
   
   /**
-   * 生成Markdown格式的辩论记录
+   * 🔥 V6.0 修复：生成Markdown格式的辩论记录（含完整性验证）
+   * 修复第一轮缺失显示问题 + 添加轮次完整性检查
    */
   generateDebateLogMarkdown() {
     const lines = [];
@@ -218,6 +235,15 @@ class DebateEngine extends EventEmitter {
     lines.push(`**总消息数**: ${this.messages.length} 条`);
     lines.push(`**参与角色**: ${this.roles.map(r => r.name || r.roleType).join(', ')}`);
     lines.push('');
+    
+    // 🔥 V6.0 新增：预分析 - 检测所有轮次，验证完整性
+    const roundAnalysis = this.analyzeMessageRounds();
+    
+    // 添加完整性报告
+    if (roundAnalysis.missingRounds.length > 0) {
+      lines.push(`⚠️ **警告**: 检测到 ${roundAnalysis.missingRounds.length} 个缺失的轮次: ${roundAnalysis.missingRounds.join(', ')}`);
+      lines.push('');
+    }
     lines.push('---');
     lines.push('');
     
@@ -234,10 +260,11 @@ class DebateEngine extends EventEmitter {
         lines.push('');
       }
       
-      // 轮次分隔
+      // 轮次分隔（V6.0 FIX: 移除错误的 +1）
       if (msg.round !== undefined && msg.round !== currentRound) {
         currentRound = msg.round;
-        lines.push(`### 🔄 第 ${currentRound + 1} 轮`);
+        // ✅ 修复：直接使用 round 值，不再 +1
+        lines.push(`### 🔄 第 ${currentRound} 轮`);
         lines.push('');
       }
       
@@ -253,9 +280,68 @@ class DebateEngine extends EventEmitter {
       lines.push('');
     });
     
-    lines.push('*本报告由 DebateEngine 自动生成*');
+    // 🔥 V6.0 新增：添加统计摘要
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+    lines.push(`## 📊 统计摘要`);
+    lines.push('');
+    lines.push(`- 总阶段数: ${roundAnalysis.totalPhases}`);
+    lines.push(`- 总轮次数: ${roundAnalysis.totalRounds}`);
+    lines.push(`- 实际包含轮次: [${roundAnalysis.existingRounds.join(', ')}]`);
+    if (roundAnalysis.missingRounds.length > 0) {
+      lines.push(`- ⚠️ 缺失轮次: [${roundAnalysis.missingRounds.join(', ')}]`);
+    }
+    lines.push(`- 消息总数: ${this.messages.length} 条`);
+    lines.push('');
+    lines.push('*本报告由 DebateEngine V6.0 自动生成*');
     
     return lines.join('\n');
+  }
+
+  /**
+   * 🔥 V6.0 新增：分析消息轮次完整性
+   * 检测是否存在缺失的轮次
+   */
+  analyzeMessageRounds() {
+    const rounds = new Set();
+    const phases = new Set();
+    
+    this.messages.forEach(msg => {
+      if (msg.round !== undefined) rounds.add(msg.round);
+      if (msg.phase !== undefined) phases.add(msg.phase);
+    });
+    
+    const existingRounds = Array.from(rounds).sort((a, b) => a - b);
+    const totalRounds = existingRounds.length > 0 ? Math.max(...existingRounds) : 0;
+    const totalPhases = phases.size;
+    
+    // 检测缺失的轮次（从1到最大轮次）
+    const missingRounds = [];
+    for (let i = 1; i <= totalRounds; i++) {
+      if (!rounds.has(i)) {
+        missingRounds.push(i);
+      }
+    }
+    
+    // 记录分析结果
+    console.log(`\n[DebateEngine] 📋 轮次完整性分析:`);
+    console.log(`[DebateEngine]   - 阶段数: ${totalPhases}`);
+    console.log(`[DebateEngine]   - 最大轮次: ${totalRounds}`);
+    console.log(`[DebateEngine]   - 已有轮次: [${existingRounds.join(', ')}]`);
+    if (missingRounds.length > 0) {
+      console.error(`[DebateEngine]   ⚠️ 缺失轮次: [${missingRounds.join(', ')}]`);
+    } else {
+      console.log(`[DebateEngine]   ✅ 所有轮次完整，无缺失`);
+    }
+    
+    return {
+      totalPhases,
+      totalRounds,
+      existingRounds,
+      missingRounds,
+      isComplete: missingRounds.length === 0,
+    };
   }
   
   /**
@@ -453,18 +539,20 @@ class DebateEngine extends EventEmitter {
   }
 
   /**
-   * 开始指定轮次（V4.0：通用角色处理）
-   * 支持所有辩论模式，不再局限于 proposer/reviewer
+   * 开始指定轮次（V8.0：支持主持人流程调度）
+   * 改进点：
+   * - 如果配置了flow且有主持人，按流程步骤执行
+   * - 主持人在正确的时机发言（开场/协调/总结）
+   * - 向后兼容：无flow配置时使用原有逻辑
    */
   async startRound(roundNumber) {
     if (roundNumber > this.maxRounds) {
-      // 达到最大轮次，尝试推进阶段
       await this.attemptPhaseProgression();
       return;
     }
-    
+
     this.currentRound = roundNumber;
-    
+
     this.emit('debate:round', {
       round: roundNumber,
       phase: this.currentPhase,
@@ -472,27 +560,352 @@ class DebateEngine extends EventEmitter {
       totalRounds: this.maxRounds,
       totalPhases: this.maxPhases,
     });
-    
-    // 🔥 V4.0 获取所有可用角色（排除 host）
+
+    console.log(`\n[DebateEngine] ══════════════════════════════════`);
+    console.log(`[DebateEngine] 🎭 第 ${roundNumber} 轮开始`);
+    console.log(`[DebateEngine] ══════════════════════════════════`);
+
+    // 🔥 V8.0 判断：是否使用流程化执行
+    const shouldUseFlowExecution = this.hasHostRole && this.flowConfig && this.flowConfig.length > 0;
+
+    if (shouldUseFlowExecution) {
+      // ✅ 流程化执行模式：按flow配置的步骤执行
+      console.log(`[DebateEngine] 📋 使用流程化执行模式 (共${this.flowConfig.length}个步骤)`);
+      await this.executeFlowBasedRound(roundNumber);
+    } else {
+      // ⚙️ 传统执行模式：所有非host角色轮流发言
+      console.log(`[DebateEngine] ⚙️ 使用传统轮次执行模式`);
+      await this.executeTraditionalRound(roundNumber);
+    }
+
+    console.log(`[DebateEngine] 🔄 第 ${roundNumber} 轮所有角色发言完毕，准备推进...`);
+    await this.advanceAfterRound();
+  }
+
+  /**
+   * 🔥 V8.0 新增：流程化轮次执行（支持主持人）
+   * 按照模式的flow配置依次执行每个步骤
+   */
+  async executeFlowBasedRound(roundNumber) {
+    const flowSteps = this.flowConfig;
+
+    for (let stepIndex = 0; stepIndex < flowSteps.length; stepIndex++) {
+      const step = flowSteps[stepIndex];
+      this.currentFlowStep = stepIndex;
+
+      console.log(`\n[DebateEngine] ┌─────────────────────────────────────┐`);
+      console.log(`[DebateEngine] │ Step ${stepIndex + 1}/${flowSteps.length}: ${step.label || step.action}`);
+      console.log(`[DebateEngine] │ Actor: ${step.actor} | Action: ${step.action}`);
+      console.log(`[DebateEngine] └─────────────────────────────────────┘`);
+
+      // 根据actor类型决定谁发言
+      switch (step.actor) {
+        case 'host':
+          // 👤 主持人专属步骤
+          if (this.hostRole) {
+            await this.executeHostStep(step, roundNumber, stepIndex);
+          } else {
+            console.warn('[DebateEngine] ⚠️ 流程要求host发言，但未找到主持人角色');
+          }
+          break;
+
+        case 'all-but-host':
+          // 👥 除主持人外的所有角色
+          await this.executeAllRolesExceptHost(roundNumber, stepIndex, step);
+          break;
+
+        case 'all':
+          // 👥 所有角色（包括主持人）
+          await this.executeAllRoles(roundNumber, stepIndex, step);
+          break;
+
+        default:
+          // 🔍 特定角色类型
+          await this.executeSpecificActor(step.actor, roundNumber, stepIndex, step);
+          break;
+      }
+
+      // 检查是否有loop标记（循环步骤）
+      if (step.loop && roundNumber < this.maxRounds - 1) {
+        console.log(`[DebateEngine] 🔄 步骤 ${step.label} 设置为循环，将在下一轮继续`);
+      }
+    }
+  }
+
+  /**
+   * 🔥 V8.0 新增：传统轮次执行（向后兼容）
+   * 原有逻辑：所有非host角色轮流发言
+   */
+  async executeTraditionalRound(roundNumber) {
     const activeRoles = this.getActiveRoles();
-    
-    console.log(`[DebateEngine] 🎭 第 ${roundNumber} 轮 - 可用角色:`, activeRoles.map(r => `${r.name}(${r.roleType})`));
-    
+
+    console.log(`[DebateEngine] 可用角色:`, activeRoles.map(r => `${r.name}(${r.roleType})`));
+
     if (activeRoles.length === 0) {
       console.warn('[DebateEngine] ⚠️ 无可用角色，跳过本轮');
       return;
     }
-    
-    // 按顺序执行每个角色
+
     for (let i = 0; i < activeRoles.length; i++) {
       const role = activeRoles[i];
-      
-      // 构建上下文（根据角色位置决定）
       const context = this.buildRoleContext(role, i, activeRoles.length);
-      
-      // 执行该角色的发言
       await this.executeGenericRole(role, context);
     }
+  }
+
+  /**
+   * 🔥 V8.0 新增：执行主持人专属步骤
+   */
+  async executeHostStep(step, roundNumber, stepIndex) {
+    const hostContext = {
+      topic: this.topic,
+      currentPhase: this.phases[this.currentPhase],
+      currentRound: roundNumber,
+      messages: this.messages,
+      role: this.hostRole.roleType,
+      roleName: this.hostRole.name,
+      isFirstSpeaker: stepIndex === 0,
+      isLastSpeaker: false,
+      previousMessages: this.messages.filter(m =>
+        m.round === roundNumber && m.phase === this.currentPhase
+      ),
+      // 传递流程步骤信息
+      flowStep: step,
+      stepLabel: step.label,
+      stepAction: step.action,
+      stepDescription: step.description,
+    };
+
+    console.log(`[DebateEngine] 🎙️ 主持人 (${this.hostRole.name}) 发言: ${step.label}`);
+
+    // 构建主持人专用的提示词
+    const prompt = this.buildHostPrompt(this.hostRole, hostContext, step);
+    const soul = this.hostRole.soul || this.getDefaultSoulForRole(this.hostRole.roleType);
+
+    try {
+      const content = await this.callAIStream(
+        soul,
+        prompt,
+        this.hostRole.model || 'deepseek-v4-flash',
+        {
+          role: this.hostRole.roleType,
+          roleName: this.hostRole.name,
+          phase: this.currentPhase,
+          round: roundNumber,
+          phaseId: this.phases[this.currentPhase]?.id || 'unknown',
+          isHostTurn: true,  // 标记这是主持人回合
+        },
+        () => {}
+      );
+
+      if (content && content !== '[已取消]') {
+        this.saveMessage({
+          role: this.hostRole.name,
+          roleType: this.hostRole.roleType,
+          content,
+          phase: this.currentPhase,
+          round: roundNumber,
+          timestamp: new Date(),
+          metadata: { flowStep: stepIndex, action: step.action },
+        });
+      }
+    } catch (error) {
+      console.error(`[DebateEngine] ❌ 主持人发言失败:`, error.message);
+    }
+  }
+
+  /**
+   * 🔥 V8.0 新增：构建主持人专用提示词
+   */
+  buildHostPrompt(role, context, step) {
+    let prompt = '';
+
+    // 字数配置
+    const depthConfig = {
+      brief: { min: 150, max: 500, name: '简短讨论' },
+      normal: { min: 500, max: 1000, name: '深入讨论' },
+      detailed: { min: 1000, max: 2000, name: '详细研究' },
+    };
+    const depth = this.outputDepth || 'normal';
+    const wordLimit = depthConfig[depth] || depthConfig.normal;
+
+    // 开头
+    prompt += `═══════════════════════════════════════\n`;
+    prompt += `【🎙️ 主持人任务 - ${step.label}】\n`;
+    prompt += `═══════════════════════════════════════\n\n`;
+
+    prompt += `【当前阶段】${context.currentPhase?.name || '讨论'}\n`;
+    prompt += `【当前轮次】第 ${context.currentRound} 轮\n`;
+    prompt += `【讨论主题】${this.topic}\n\n`;
+
+    // 流程步骤说明
+    prompt += `┌─────────────────────────────────────────────┐\n`;
+    prompt += `│ 📋 当前任务                                 │\n`;
+    prompt += `├─────────────────────────────────────────────┤\n`;
+    prompt += `│ 动作: ${step.action}\n`;
+    prompt += `│ 描述: ${step.description || '无详细描述'}\n`;
+    prompt += `└─────────────────────────────────────────────┘\n\n`;
+
+    // 历史消息摘要
+    if (this.messages && this.messages.length > 0) {
+      prompt += `【当前讨论进展】\n`;
+      prompt += `已产生 ${this.messages.length} 条消息。\n`;
+
+      // 提取关键论点
+      const recentMessages = this.messages.slice(-5);
+      recentMessages.forEach((msg, idx) => {
+        const preview = msg.content.substring(0, 100);
+        prompt += `${idx + 1}. [${msg.roleName}] ${preview}${msg.content.length > 100 ? '...' : ''}\n`;
+      });
+      prompt += `\n`;
+    }
+
+    // 主持人具体指令
+    prompt += `✅ 【你的具体任务】\n\n`;
+    switch (step.action) {
+      case 'open':
+        prompt += `作为主持人，请进行开场引导：\n`;
+        prompt += `1. 欢迎大家参与讨论\n`;
+        prompt += `2. 明确介绍本次讨论的主题："${this.topic}"\n`;
+        prompt += `3. 说明本次讨论的目标和预期成果\n`;
+        prompt += `4. 简要说明讨论规则和时间安排\n`;
+        prompt += `5. 可以提出1-2个引导性问题激发思考\n`;
+        break;
+
+      case 'cluster':
+        prompt += `作为主持人，请对已产生的观点进行归类整理：\n`;
+        prompt += `1. 识别主要观点类别（如：技术、商业、风险等）\n`;
+        prompt += `2. 将每条观点归入对应类别\n`;
+        prompt += `3. 指出各类别的核心共识点和分歧点\n`;
+        prompt += `4. 标注需要进一步深入讨论的问题\n`;
+        break;
+
+      case 'conclude':
+        prompt += `作为主持人，请进行总结收尾：\n`;
+        prompt += `1. 归纳本次讨论的核心结论\n`;
+        prompt += `2. 列出已达成共识的要点\n`;
+        prompt += `3. 梳理仍存在分歧的问题\n`;
+        prompt += `4. 给出下一步行动建议\n`;
+        prompt += `5. 感谢各位参与者的贡献\n`;
+        break;
+
+      default:
+        prompt += `根据当前动作"${step.action}"，完成相应的主持工作。\n`;
+        prompt += `参考描述：${step.description || '请根据上下文判断应该做什么'}\n`;
+        break;
+    }
+
+    prompt += `\n⚠️ 控制总字数在 ${wordLimit.min}-${wordLimit.max} 字以内\n`;
+
+    // 结尾检查清单
+    prompt += `\n═══════════════════════════════════════\n`;
+    prompt += `【✅ 输出前检查】\n`;
+    prompt += `□ 字数在 ${wordLimit.min}-${wordLimit.max} 之间？\n`;
+    prompt += `□ 是否完成了"${step.label}"的任务目标？\n`;
+    prompt += `□ 语言是否专业、得体、具有主持人的权威感？\n`;
+    prompt += `═══════════════════════════════════════\n`;
+
+    return prompt;
+  }
+
+  /**
+   * 🔥 V8.0 新增：执行除主持人外的所有角色
+   */
+  async executeAllRolesExceptHost(roundNumber, stepIndex, step) {
+    const activeRoles = this.getActiveRoles();  // 已排除host
+
+    if (activeRoles.length === 0) {
+      console.warn('[DebateEngine] ⚠️ 无可用角色');
+      return;
+    }
+
+    for (let i = 0; i < activeRoles.length; i++) {
+      const role = activeRoles[i];
+      const context = this.buildRoleContext(role, i, activeRoles.length);
+      // 注入流程步骤信息
+      context.flowStep = step;
+      context.stepLabel = step.label;
+      await this.executeGenericRole(role, context);
+    }
+  }
+
+  /**
+   * 🔥 V8.0 新增：执行所有角色（包括主持人）
+   */
+  async executeAllRoles(roundNumber, stepIndex, step) {
+    // 先让主持人发言
+    if (this.hostRole) {
+      await this.executeHostStep(step, roundNumber, stepIndex);
+    }
+
+    // 再让其他角色发言
+    await this.executeAllRolesExceptHost(roundNumber, stepIndex, step);
+  }
+
+  /**
+   * 🔥 V8.0 新增：执行特定actor类型的角色
+   */
+  async executeSpecificActor(actorType, roundNumber, stepIndex, step) {
+    // 类型安全检查
+    const safeActorType = typeof actorType === 'string' ? actorType.toLowerCase().trim() : String(actorType || '').toLowerCase();
+    
+    // 查找匹配的角色
+    const matchedRoles = this.roles.filter(r => {
+      const rt = (r.roleType || '').toString().toLowerCase().trim();
+      return rt === safeActorType || r.id === actorType;
+    });
+
+    if (matchedRoles.length === 0) {
+      console.warn(`[DebateEngine] ⚠️ 未找到类型为 "${actorType}" 的角色`);
+      return;
+    }
+
+    for (const role of matchedRoles) {
+      const context = this.buildRoleContext(role, 0, 1);
+      context.flowStep = step;
+      context.stepLabel = step.label;
+      await this.executeGenericRole(role, context);
+    }
+  }
+
+  async advanceAfterRound() {
+    if (this.currentRound >= this.maxRounds) {
+      console.log(`[DebateEngine] 达到最大轮次 ${this.maxRounds}，推进到下一阶段`);
+      await this.generateConsensus();
+      const nextPhase = this.currentPhase + 1;
+      if (nextPhase < this.phases.length) {
+        await this.startPhase(nextPhase);
+      } else {
+        console.log(`[DebateEngine] 所有阶段已完成，结束辩论`);
+        await this.complete();
+      }
+      return;
+    }
+
+    const shouldAdvancePhase = this.evaluateGenericProgression();
+    
+    if (shouldAdvancePhase) {
+      console.log(`[DebateEngine] 阶段 ${this.currentPhase} 讨论充分，推进到下一阶段`);
+      await this.generateConsensus();
+      const nextPhase = this.currentPhase + 1;
+      if (nextPhase < this.phases.length) {
+        await this.startPhase(nextPhase);
+      } else {
+        await this.complete();
+      }
+    } else {
+      console.log(`[DebateEngine] 继续第 ${this.currentRound + 1}/${this.maxRounds} 轮讨论`);
+      await this.startRound(this.currentRound + 1);
+    }
+  }
+
+  evaluateGenericProgression() {
+    let score = 0;
+    if (this.currentRound >= 2) score++;
+    if (this.currentRound >= this.maxRounds - 1) score++;
+    if (this.messages.length >= 4 * this.currentRound) score++;
+    if (this.messages.length >= 6) score++;
+    return score >= 2;
   }
 
   /**
@@ -610,59 +1023,479 @@ class DebateEngine extends EventEmitter {
   }
 
   /**
-   * 🔥 V5.0 新增：构建通用提示词（含上下文记忆防重复）
+   * 🔥 V7.0 全面重构：构建通用提示词（含阶段差异化+多角度引导）
+   * 核心改进：
+   * 1. 阶段差异化指令（每个阶段有不同的侧重点和目标）
+   * 2. 多维度分析引导（确保覆盖全面）
+   * 3. 强化防重复机制（已用论点地图+语义去重）
+   * 4. 创新性激励（每轮必须有新发现）
+   * 5. 深度递进要求（后轮必须比前轮更深入）
    */
   buildGenericPrompt(role, context) {
     const { topic, currentPhase, currentRound, previousMessages, isFirstSpeaker } = context;
     
+    // 获取当前输出深度的字数配置
+    const depthConfig = {
+      brief: { min: 150, max: 500, name: '简短讨论' },
+      normal: { min: 500, max: 1000, name: '深入讨论' },
+      detailed: { min: 1000, max: 2000, name: '详细研究' },
+    };
+    const depth = this.outputDepth || 'normal';
+    const wordLimit = depthConfig[depth] || depthConfig.normal;
+    
+    // ========== 阶段差异化配置 ==========
+    const phaseConfig = this.getPhaseConfig(currentPhase?.id, currentRound);
+    
     let prompt = '';
     
-    // 基础指令
-    prompt += `【当前阶段】${currentPhase?.name || '讨论'}\n`;
-    prompt += `【讨论主题】${topic}\n`;
-    prompt += `【当前轮次】第 ${currentRound} 轮\n`;
-    prompt += `【你的身份】${role.name}\n\n`;
+    // ═══════════════════════════════════════
+    // 第一层：字数强制要求（保持不变）
+    // ═══════════════════════════════════════
+    prompt += `═══════════════════════════════════════\n`;
+    prompt += `【⚠️ 字数强制要求 - ${wordLimit.name}模式】\n`;
+    prompt += `✅ 你的回复必须控制在 ${wordLimit.min}-${wordLimit.max} 字之间\n`;
+    prompt += `🚫 绝对不可超过 ${wordLimit.max} 字，否则判定为不合格\n`;
+    prompt += `═══════════════════════════════════════\n\n`;
     
-    // 如果有历史消息，添加上下文（增强版：包含防重复提醒）
+    // 基础上下文信息
+    prompt += `【当前阶段】${currentPhase?.name || '讨论'} (Phase ID: ${currentPhase?.id || 'unknown'})\n`;
+    prompt += `【阶段目标】${phaseConfig.objective}\n`;
+    prompt += `【讨论主题】${topic}\n`;
+    prompt += `【当前轮次】第 ${currentRound} 轮 (共${this.maxRounds}轮)\n`;
+    prompt += `【你的身份】${role.name} (${role.roleType})\n\n`;
+    
+    // ═══════════════════════════════════════
+    // 第二层：阶段专属指令（V7.0 新增）
+    // ═══════════════════════════════════════
+    prompt += `┌─────────────────────────────────────────────┐\n`;
+    prompt += `│ 🎯 【本阶段核心任务 - V7.0 阶段差异化】     │\n`;
+    prompt += `└─────────────────────────────────────────────┘\n\n`;
+    prompt += `${phaseConfig.instruction}\n\n`;
+    
+    // 如果有历史消息，添加上下文（V7.0 增强：包含论点地图和防重复警告）
     if (previousMessages && previousMessages.length > 0) {
-      prompt += `【之前的讨论】\n`;
+      prompt += `┌─────────────────────────────────────────────┐\n`;
+      prompt += `│ 📜 【历史讨论记录 - 最近${Math.min(5, previousMessages.length)}条】       │\n`;
+      prompt += `└─────────────────────────────────────────────┘\n\n`;
+      
       previousMessages.slice(-5).forEach((msg, idx) => {
-        const contentPreview = msg.content.substring(0, 150);
-        prompt += `${idx + 1}. ${msg.roleName || msg.role}: ${contentPreview}${msg.content.length > 150 ? '...' : ''}\n`;
+        const contentPreview = msg.content.substring(0, 120);
+        prompt += `${idx + 1}. [${msg.roleName || msg.role}] (第${msg.round || '?'}轮-${this.phases[msg.phase]?.name || '?'})\n`;
+        prompt += `   ${contentPreview}${msg.content.length > 120 ? '...' : ''}\n\n`;
       });
       
-      // 🔥 V5.0 新增：提取已使用的关键论点，防止重复
-      const usedPoints = this.extractKeyPointsFromMessages(previousMessages);
-      if (usedPoints.length > 0) {
-        prompt += `\n⚠️ 【已论述的观点（请勿重复）】：\n`;
-        usedPoints.slice(-8).forEach((point, idx) => {
-          prompt += `- ${point}\n`;
+      // 🔥 V7.0 新增：提取并展示"已用论点地图"
+      const argumentMap = this.buildArgumentMap(previousMessages);
+      if (argumentMap.usedArguments.length > 0) {
+        prompt += `┌─────────────────────────────────────────────┐\n`;
+        prompt += `│ 🚫 【已用论点黑名单 - 绝对禁止重复！】      │\n`;
+        prompt += `└─────────────────────────────────────────────┘\n\n`;
+        
+        prompt += `以下论点已被使用过，**禁止再次提及相同或相似内容**：\n\n`;
+        
+        // 按类别分组显示
+        const groupedArgs = this.groupArgumentsByCategory(argumentMap.usedArguments);
+        Object.entries(groupedArgs).forEach(([category, args]) => {
+          prompt += `【${category}】(${args.length}个)\n`;
+          args.forEach((arg, idx) => {
+            prompt += `   ${idx + 1}. ${arg.text.substring(0, 80)}${arg.text.length > 80 ? '...' : ''} [by ${arg.author}]\n`;
+          });
+          prompt += `\n`;
         });
-        prompt += `\n以上观点已被其他角色阐述过，请避免重复相同内容，可以从新的角度或更深层次展开。\n\n`;
+        
+        prompt += `⚠️ 警告：如果你发现自己要说的内容与上述任何论点相似度>70%，请立即换一个全新角度！\n\n`;
+      }
+      
+      // 🔥 V7.0 新增：显示"未覆盖维度"
+      if (argumentMap.uncoveredDimensions.length > 0) {
+        prompt += `💡 【建议探索的新维度】：\n`;
+        argumentMap.uncoveredDimensions.slice(0, 3).forEach((dim, idx) => {
+          prompt += `   ${idx + 1}. ${dim}\n`;
+        });
+        prompt += `\n`;
       }
     }
     
-    // 根据是否首位发言调整指令（含防重复约束）
-    if (isFirstSpeaker) {
-      prompt += `请作为${role.name}，针对"${topic}"这个话题，提出你的核心观点。\n`;
-      prompt += `要求：\n- 观点明确、逻辑清晰\n- 内容充实、言之有物\n- 避免重复表达\n`;
+    // ═══════════════════════════════════════
+    // 第三层：角色任务指令（V7.0 增强）
+    // ═══════════════════════════════════════
+    prompt += `┌─────────────────────────────────────────────┐\n`;
+    prompt += `│ ✅ 【你的具体任务 - 第${currentRound}轮】              │\n`;
+    prompt += `└─────────────────────────────────────────────┘\n\n`;
+    
+    if (isFirstSpeaker && currentRound <= 1) {
+      // 首轮发言的特殊指令
+      prompt += `🎬 **首轮发言 - 设定基调**\n\n`;
+      prompt += `作为首位发言者，你需要：\n`;
+      prompt += `1. 提出你的**核心假设**或**初步判断**（1-2句话）\n`;
+      prompt += `2. 给出**2-3个关键理由**支撑你的观点\n`;
+      prompt += `3. 可以留下1-2个**开放性问题**引导后续讨论\n\n`;
+      prompt += `💡 首轮策略：不要试图面面俱到，聚焦最有力的1-2个论点即可。\n\n`;
     } else {
-      prompt += `基于以上讨论，作为${role.name}，请继续补充你的观点或回应之前的发言。\n`;
-      prompt += `要求：\n- 可以补充新角度、新论据\n- 可以对之前的观点进行延伸或质疑\n- 保持内容简洁、避免冗余\n`;
-      prompt += `- ⚠️ 不要重复前面已经说过的观点和论据\n`;
-      prompt += `- ⚠️ 使用不同的表达方式，避免"首先/其次/最后"的机械结构\n`;
+      // 非首轮发言的递进指令
+      const roundStrategy = this.getRoundStrategy(currentRound, previousMessages?.length || 0);
+      prompt += `🔄 **第${currentRound}轮发言 - ${roundStrategy.name}**\n\n`;
+      prompt += `${roundStrategy.description}\n\n`;
+      prompt += `本轮具体要求：\n`;
+      roundStrategy.requirements.forEach((req, idx) => {
+        prompt += `${idx + 1}. ${req}\n`;
+      });
+      prompt += `\n`;
     }
     
-    // 输出深度控制
-    const depthInstruction = this.outputDepth === 'brief' 
-      ? '请用简洁的语言回答（200字左右）'
-      : this.outputDepth === 'detailed'
-        ? '请详细阐述你的观点（500-800字）'
-        : '请给出完整深入的分析（800-1200字）';
+    // 字数提醒
+    prompt += `⚠️ 控制总字数在 ${wordLimit.min}-${wordLimit.max} 字以内\n\n`;
     
-    prompt += `\n${depthInstruction}`;
+    // ═══════════════════════════════════════
+    // 第四层：多角度分析引导（V7.0 新增）
+    // ═══════════════════════════════════════
+    prompt += `┌─────────────────────────────────────────────┐\n`;
+    prompt += `│ 📊 【多维度分析参考矩阵 - V7.0】           │\n`;
+    prompt += `└─────────────────────────────────────────────┘\n\n`;
+    prompt += `请确保你的分析覆盖以下维度（选择与本话题最相关的2-3个）：\n\n`;
+    
+    const dimensionMatrix = [
+      ['技术可行性', '能否用现有技术实现？难点在哪？需要什么创新？'],
+      ['商业价值', '市场规模多大？盈利模式是什么？ROI如何？'],
+      ['用户需求', '真实痛点是什么？付费意愿有多强？'],
+      ['法律合规', '有哪些法律风险？如何规避？责任归属？'],
+      ['竞争格局', '竞争对手是谁？差异化优势在哪里？护城河？'],
+      ['实施路径', 'MVP应该做什么？分几步实施？资源需求？'],
+      ['风险评估', '最大风险是什么？概率多大？如何应对？'],
+      ['创新机会', '有什么被忽视的机会？跨界借鉴的可能性？'],
+    ];
+    
+    dimensionMatrix.forEach(([dim, desc], idx) => {
+      prompt += `${idx + 1}. **${dim}**：${desc}\n`;
+    });
+    prompt += `\n💡 提示：不要试图覆盖所有维度，选择最关键的2-3个深入阐述即可。\n\n`;
+    
+    // ═══════════════════════════════════════
+    // 第五层：质量标准与检查清单（V7.0 增强）
+    // ═══════════════════════════════════════
+    prompt += `┌─────────────────────────────────────────────┐\n`;
+    prompt += `│ 📏 【字数红线】上限:${wordLimit.max} | 下限:${wordLimit.min}     │\n`;
+    prompt += `└─────────────────────────────────────────────┘\n\n`;
+    
+    // 输出深度控制（使用新的V6.0指令）
+    const depthInstruction = this.getDepthInstruction(depth);
+    prompt += `${depthInstruction}\n`;
+    
+    // 最终检查清单（增强版）
+    prompt += `═══════════════════════════════════════\n`;
+    prompt += `【✅ V7.0 输出前最终检查清单】\n`;
+    prompt += `□ 字数是否在 ${wordLimit.min}-${wordLimit.max} 之间？\n`;
+    prompt += `□ 是否有至少1个**全新的观点/角度**？（非重复内容）\n`;
+    prompt += `□ 是否比上一轮**更深入**或**更新颖**？\n`;
+    prompt += `□ 是否避免了"正如之前提到的"这类重复表述？\n`;
+    prompt += `□ 是否删除了所有冗余、废话、套话？\n`;
+    prompt += `□ 是否提供了具体的案例/数据/数字？（而非空泛论述）\n`;
+    prompt += `═══════════════════════════════════════\n`;
     
     return prompt;
+  }
+
+  /**
+   * 🔥 V7.0 新增：获取阶段配置（阶段差异化核心）
+   */
+  getPhaseConfig(phaseId, currentRound) {
+    const phaseConfigs = {
+      'probe': {
+        objective: '深入理解需求背景、识别核心问题、明确成功标准',
+        instruction: `【需求探查阶段 - 你的核心任务】
+
+本阶段目标：
+🔍 **挖掘表象背后的真正需求**
+很多需求在表述时是模糊的或不准确的，你的任务是：
+1. 识别需求的**隐含假设**（"用户真的需要X吗？还是其实需要Y？"）
+2. 发现**未被说出的痛点**（"用户没提到但实际很困扰的问题"）
+3. 明确**成功的衡量标准**（"怎么做算做好了？"）
+
+分析框架：
+• WHO：谁会用？他们的技术水平、预算、决策权？
+• WHAT：解决什么问题？问题的紧迫性和频率？
+• WHY：为什么现有方案不够好？根本原因是什么？
+• HOW MUCH：愿意付出多少成本（时间/金钱/精力）？
+
+⚠️ 禁止行为：
+- 不要急于给出解决方案（这是下一阶段的任务）
+- 不要接受表面需求而不追问"为什么"
+- 不要假设用户的需求是正确的`,
+      },
+      'design': {
+        objective: '提出和评估多种技术方案，找出最优解',
+        instruction: `【方案设计阶段 - 你的核心任务】
+
+本阶段目标：
+🎨 **设计解决方案并提出评估**
+基于需求探查的发现，现在需要：
+1. 提出**2-3种可行的方案选项**（不是只有一种）
+2. 每种方案的**优劣对比**（Trade-off分析）
+3. 推荐**最优方案及理由**
+
+方案设计原则：
+• 可行性：技术上能实现吗？需要什么资源？
+• 可扩展性：未来增长时还能用吗？
+• 成本效益：投入产出比合理吗？
+• 风险可控：最坏情况是什么？能承受吗？
+
+评估矩阵（建议使用）：
+| 方案 | 开发成本 | 维护成本 | 风险等级 | 推荐度 |
+|------|---------|---------|---------|--------|
+| 方案A | ? | ? | ? | ?/5 |
+| 方案B | ? | ? | ? | ?/5 |
+
+⚠️ 禁止行为：
+- 不要只提一种方案（要有备选）
+- 不要忽略方案的缺点（要客观）
+- 不要陷入细节实现（先定方向再谈细节）`,
+      },
+      'impl': {
+        objective: '细化实现步骤、资源规划和时间安排',
+        instruction: `【实现规划阶段 - 你的核心任务】
+
+本阶段目标：
+🔧 **将方案转化为可执行的行动计划**
+选定方案后，需要规划如何落地：
+1. **拆解任务**：将大目标分解为小步骤（WBS工作分解结构）
+2. **资源规划**：人力、技术、资金、时间各需要多少？
+3. **里程碑设定**：关键节点和验收标准是什么？
+4. **风险预案**：可能遇到什么障碍？Plan B是什么？
+
+实施规划框架：
+Phase 1（第1-X周）：基础搭建
+  - 任务1.1：...
+  - 任务1.2：...
+  - 交付物：...
+
+Phase 2（第X-Y周）：核心功能
+  ...
+
+Phase 3（第Y-Z周）：优化上线
+  ...
+
+资源需求清单：
+□ 人员：角色、数量、技能要求
+□ 技术：工具、框架、第三方服务
+□ 预算：开发、运营、 contingency
+□ 时间：关键路径、依赖关系
+
+⚠️ 禁止行为：
+- 不要过于理想化（要考虑实际情况）
+- 不要忽略依赖关系（A完成后才能做B）
+- 不要忘记测试和验证环节`,
+      },
+      'validate': {
+        objective: '确认方案满足所有需求，识别遗留风险',
+        instruction: `【验证确认阶段 - 你的核心任务】
+
+本阶段目标：
+✅ **最终检验方案完整性和可行性**
+在动手实施前，最后检查一遍：
+1. **需求覆盖度**：原始需求都满足了吗？有没有遗漏？
+2. **方案完整性**：从端到端跑通了吗？有无断点？
+3. **风险残留**：还有什么可能出错的地方？严重程度？
+
+验证方法：
+• 回溯检查：对照最初的需求列表逐项确认
+• 场景推演：模拟用户使用的典型流程
+• 压力测试：极端情况下的表现如何？
+• 专家评审：邀请外部视角发现问题
+
+输出格式建议：
+## 验证结论
+### ✅ 已满足的需求（列出）
+### ⚠️ 部分满足的需求（说明差距）
+### ❌ 未满足的需求（说明原因或替代方案）
+### 📋 遗留风险清单（按优先级排序）
+### 🎯 最终行动建议
+
+⚠️ 禁止行为：
+- 不要形式主义走过场（要认真检查）
+- 不要隐瞒问题（早发现比晚发现好）
+- 不要过度优化（完美是好的敌人）`,
+      },
+    };
+
+    return phaseConfigs[phaseId] || phaseConfigs['probe'];
+  }
+
+  /**
+   * 🔥 V7.0 新增：获取轮次策略（深度递进核心）
+   */
+  getRoundStrategy(roundNum, totalPreviousMessages) {
+    const strategies = {
+      1: {
+        name: '开局破题',
+        description: '第一轮发言，任务是**设定讨论基调和初步立场**。',
+        requirements: [
+          '明确提出你的核心观点或假设（1句话）',
+          '给出2-3个关键理由支撑',
+          '可以预留1-2个开放性问题',
+          '不需要太深入，但要足够清晰',
+        ],
+      },
+      2: {
+        name: '深化论证',
+        description: '第二轮发言，需要在第一轮基础上**深入展开或回应质疑**。',
+        requirements: [
+          '选择一个论点深入剖析（而非泛泛而谈）',
+          '提供具体的数据、案例或证据',
+          '回应可能的反驳意见',
+          '引入一个新的视角或维度',
+        ],
+      },
+      3: {
+        name: '多维拓展',
+        description: '第三轮发言，必须**跳出原有框架，探索新维度**。',
+        requirements: [
+          '提出一个前两轮未涉及的新角度',
+          '进行跨行业/跨领域的类比分析',
+          '探讨边界情况或极端场景',
+          '质疑或修正之前的假设',
+        ],
+      },
+      4: {
+        name: '综合洞察',
+        description: '第四轮发言，目标是**提炼洞察、提出创新性发现**。',
+        requirements: [
+          '综合前几轮讨论的核心要点',
+          '提出1-2个原创性的洞察或发现',
+          '指出讨论中被忽视的关键问题',
+          '给出具有前瞻性的建议或预测',
+        ],
+      },
+      5: {
+        name: '收尾总结',
+        description: '最后一轮发言，需要**总结成果并明确下一步**。',
+        requirements: [
+          '归纳已达成共识的部分',
+          '梳理仍存在分歧的要点',
+          '给出明确的行动建议',
+          '评估整体方案成熟度（1-10分）',
+        ],
+      },
+    };
+
+    // 根据轮次返回对应策略，如果超过5轮则使用"收尾总结"
+    return strategies[Math.min(roundNum, 5)] || strategies[4];
+  }
+
+  /**
+   * 🔥 V7.0 新增：构建论点地图（增强版防重复机制）
+   */
+  buildArgumentMap(messages) {
+    const usedArguments = [];
+    const allDimensions = [
+      '技术可行性', '商业价值', '用户需求', '法律合规', 
+      '竞争格局', '实施路径', '风险评估', '创新机会'
+    ];
+    const coveredDimensions = new Set();
+    
+    messages.forEach(msg => {
+      if (!msg.content) return;
+      
+      // 提取核心论点（更精准的模式匹配）
+      const patterns = [
+        /(?:核心|关键|主要|重要)[^。]{15,100}/g,
+        /(?:认为|指出|强调|表示|主张|建议)[^。]{20,120}/g,
+        /(?:第一|首先|其一|1[.、]|一、)[^。]{25,120}/g,
+        /(?:第二|其次|其二|2[.、]|二、)[^。]{25,120}/g,
+        /(?:第三|再次|其三|3[.、]|三、)[^。]{25,120}/g,
+        /(?:因此|所以|综上|总之|结论)[^。]{20,100}/g,
+        /(?:风险|挑战|问题|难点|障碍)[^。]{20,100}/g,
+        /(?:优势|机会|价值|好处|收益)[^。]{20,100}/g,
+        /(?:建议|推荐|应该|需要|必须)[^。]{20,100}/g,
+      ];
+      
+      patterns.forEach(pattern => {
+        const matches = msg.content.match(pattern);
+        if (matches) {
+          matches.forEach(match => {
+            const cleaned = match.trim().slice(0, 100);
+            if (cleaned.length > 15) {
+              usedArguments.push({
+                text: cleaned,
+                author: msg.roleName || msg.role,
+                round: msg.round,
+                phase: msg.phase,
+              });
+              
+              // 检测覆盖的维度
+              allDimensions.forEach(dim => {
+                if (cleaned.includes(dim) || this.isRelatedToDimension(cleaned, dim)) {
+                  coveredDimensions.add(dim);
+                }
+              });
+            }
+          });
+        }
+      });
+    });
+    
+    // 计算未覆盖的维度
+    const uncoveredDimensions = allDimensions.filter(d => !coveredDimensions.has(d));
+    
+    return {
+      usedArguments: usedArguments.slice(-20), // 保留最近20个论点
+      coveredDimensions: [...coveredDimensions],
+      uncoveredDimensions,
+      totalArguments: usedArguments.length,
+    };
+  }
+
+  /**
+   * 🔥 V7.0 新增：将论点按类别分组
+   */
+  groupArgumentsByCategory(argList) {
+    const categories = {
+      '核心观点': [],
+      '风险挑战': [],
+      '建议方案': [],
+      '数据证据': [],
+      '其他': [],
+    };
+
+    argList.forEach(arg => {
+      const text = arg.text;
+      if (/核心|认为|主张|观点|假设/.test(text)) {
+        categories['核心观点'].push(arg);
+      } else if (/风险|挑战|问题|难点|障碍|隐患/.test(text)) {
+        categories['风险挑战'].push(arg);
+      } else if (/建议|推荐|应该|需要|必须|方案/.test(text)) {
+        categories['建议方案'].push(arg);
+      } else if (/\d+%|\d+万|数据显示?|根据.*调查|研究显示/.test(text)) {
+        categories['数据证据'].push(arg);
+      } else {
+        categories['其他'].push(arg);
+      }
+    });
+    
+    // 移除空分类
+    Object.keys(categories).forEach(key => {
+      if (categories[key].length === 0) delete categories[key];
+    });
+    
+    return categories;
+  }
+
+  /**
+   * 🔥 V7.0 新增：检测文本是否与某个维度相关
+   */
+  isRelatedToDimension(text, dimension) {
+    const keywords = {
+      '技术可行性': ['技术', '实现', '开发', '架构', '算法', '性能', '扩展'],
+      '商业价值': ['市场', '盈利', '收入', '商业模式', '客户', '定价', 'ROI'],
+      '用户需求': ['用户', '痛点', '体验', '需求', '场景', '使用', '交互'],
+      '法律合规': ['法律', '合规', '风险', '隐私', '数据保护', '监管', '政策'],
+      '竞争格局': ['竞争', '对手', '替代', '市场份额', '差异化', '优势'],
+      '实施路径': ['实施', '步骤', '计划', '里程碑', '资源', '团队', '时间'],
+      '风险评估': ['风险', '失败', '不确定性', '依赖', '瓶颈', '单点'],
+      '创新机会': ['创新', '机会', '趋势', '未来', '前沿', '突破', '变革'],
+    };
+    
+    const dims = keywords[dimension] || [];
+    return dims.some(keyword => text.includes(keyword));
   }
 
   /**
@@ -1186,18 +2019,106 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
     const newCommitments = this.extractCommitments(phaseMessages);
     this.commitments.push(...newCommitments);
     
-    // 生成共识摘要
+    // 🔥 修复：生成有意义的共识摘要
+    const summary = this.generateSimpleConsensusSummary(phase, phaseMessages, newCommitments);
+    
     const consensus = {
       phase: phase.id,
       phaseName: phase.name,
       round: this.currentRound,
-      summary: '', // 实际应由 AI 生成
+      summary: summary,
       commitments: newCommitments,
       timestamp: new Date().toISOString(),
+      // 🔥 新增：为每轮每角色生成独立摘要
+      roleSummaries: this.generateRoleSummaries(phaseMessages),
     };
     
     this.consensus.push(consensus);
     this.emit('debate:consensus', consensus);
+  }
+  
+  /**
+   * 🔥 新增：生成简单的共识摘要
+   */
+  generateSimpleConsensusSummary(phase, phaseMessages, commitments) {
+    if (phaseMessages.length === 0) {
+      return '本阶段暂无讨论内容。';
+    }
+    
+    // 统计参与角色
+    const roles = [...new Set(phaseMessages.map(m => m.role).filter(r => r !== 'system'))];
+    const messageCount = phaseMessages.length;
+    
+    // 统计正反方观点数量
+    const proposerMessages = phaseMessages.filter(m => 
+      m.role && (m.role.includes('proposer') || m.role.includes('正方') || m.role.includes('提案'))
+    );
+    const reviewerMessages = phaseMessages.filter(m => 
+      m.role && (m.role.includes('reviewer') || m.role.includes('反方') || m.role.includes('审查'))
+    );
+    
+    // 生成摘要
+    let summary = `本阶段（${phase.name}）共有 ${roles.length} 个角色参与讨论，产生 ${messageCount} 条消息。`;
+    
+    if (proposerMessages.length > 0 && reviewerMessages.length > 0) {
+      summary += `其中正方提出 ${proposerMessages.length} 个观点，反方提出 ${reviewerMessages.length} 个观点。`;
+    }
+    
+    if (commitments.length > 0) {
+      summary += `各方共达成 ${commitments.length} 项核心承诺。`;
+    }
+    
+    // 添加主要观点摘要
+    const keyPoints = phaseMessages
+      .filter(m => m.content && m.content.length > 50)
+      .slice(0, 2)
+      .map(m => m.content.substring(0, 100) + '...')
+      .join('；');
+    
+    if (keyPoints) {
+      summary += ` 主要观点：${keyPoints}`;
+    }
+    
+    return summary;
+  }
+  
+  /**
+   * 🔥 新增：为每轮每角色生成独立摘要
+   */
+  generateRoleSummaries(phaseMessages) {
+    const roleGroups = {};
+    
+    // 按角色分组消息
+    phaseMessages.forEach(msg => {
+      if (msg.role && msg.role !== 'system') {
+        if (!roleGroups[msg.role]) {
+          roleGroups[msg.role] = [];
+        }
+        roleGroups[msg.role].push(msg);
+      }
+    });
+    
+    // 为每个角色生成摘要
+    const summaries = {};
+    Object.entries(roleGroups).forEach(([role, messages]) => {
+      const totalChars = messages.reduce((sum, m) => sum + (m.content?.length || 0), 0);
+      const avgChars = messages.length > 0 ? Math.round(totalChars / messages.length) : 0;
+      
+      summaries[role] = {
+        messageCount: messages.length,
+        totalChars: totalChars,
+        avgCharsPerMessage: avgChars,
+        // 取第一条消息的角色名作为显示名
+        displayName: messages[0]?.roleName || role,
+        // 简要总结（取前两条消息的内容摘要）
+        briefSummary: messages
+          .slice(0, 2)
+          .map(m => m.content?.substring(0, 50) + '...')
+          .join(' | ') || '暂无内容',
+      };
+    });
+    
+    return summaries;
   }
 
   /**
@@ -1314,6 +2235,17 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
       let lastChunkContent = '';
       const DUPLICATE_THRESHOLD = 0.7;  // 🔥 V5.0 降低阈值（0.85→0.7）更严格检测
 
+      // 🔥 V10.0 核心修复：词语级别翻倍检测与剔除
+      const cleanWordDuplication = (text) => {
+        if (!text || text.length < 4) return text;
+        const chineseDupRegex = /([\u4e00-\u9fa5]{2,6})\1+/g;
+        let cleaned = text.replace(chineseDupRegex, '$1');
+        const englishDupRegex = /(\b\w+\b)\s+\1\b/g;
+        cleaned = cleaned.replace(englishDupRegex, '$1');
+        return cleaned;
+      };
+      let lastCheckLength = 0;
+
       // 🔥 逐块读取流式数据
       for await (const chunk of stream) {
         if (controller.signal.aborted) {
@@ -1323,22 +2255,29 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
 
         let content = chunk.choices[0]?.delta?.content || '';
 
-        // 🔥 新增：去重检测 - 如果当前块与上一块高度相似（重复字符过多），跳过
+        // 🔥 chunk边界去重检测
         if (content && lastChunkContent) {
-          // 检查是否有重复模式（如"的有有"）
-          const combined = lastChunkContent.slice(-10) + content.slice(0, 10);
-          // 如果新内容开始与旧的结束有超过3个连续相同字符，可能是重复
           if (this.backtrackValidator.detectRepetition(content, lastChunkContent)) {
-            console.log(`[DebateEngine] ⚠️ 检测到重复内容，跳过: "${content.slice(0, 20)}..."`);
-            lastChunkContent = content.slice(-10);  // 更新最后内容
+            console.log(`[DebateEngine] chunk边界检测到重复，跳过: "${content.slice(0, 20)}..."`);
+            lastChunkContent = content.slice(-10);
             continue;
           }
         }
 
         if (content) {
-          lastChunkContent = content.slice(-10);  // 保留最后10个字符用于下次比较
+          lastChunkContent = content.slice(-10);
           fullContent += content;
           chunkCount++;
+          
+          // 🔥 V10.0 新增：定期检测fullContent中的词语翻倍（每100字符检测一次）
+          if (fullContent.length - lastCheckLength > 100) {
+            const cleanedContent = cleanWordDuplication(fullContent);
+            if (cleanedContent.length < fullContent.length * 0.95) {
+              console.log(`[DebateEngine] 检测到词语翻倍，清理: ${fullContent.length} → ${cleanedContent.length} 字符`);
+              fullContent = cleanedContent;
+            }
+            lastCheckLength = fullContent.length;
+          }
 
           // 🔥 发送每个文本块到前端
           this.emit('debate:stream:chunk', {
@@ -1355,8 +2294,8 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
         }
       }
 
-      // 🔥 V9.0 极简修复：跳过所有后处理清理，保留 AI 原始输出
-      // 原则：程序可用性优先，不要复杂逻辑导致内容丢失
+      // 🔥 V10.0 流式结束后最终清理
+      fullContent = cleanWordDuplication(fullContent);
 
       clearTimeout(timeoutId);
       this._currentAbortController = null;
@@ -1364,6 +2303,9 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
       console.log(`\n✅ [DebateEngine] 流式输出完成!`);
       console.log(`[DebateEngine] 总块数: ${chunkCount}`);
       console.log(`[DebateEngine] 最终长度: ${fullContent.length} 字符`);
+
+      // 🔥 V6.0 新增：字数合规性检测（仅记录，不截断）
+      this.checkWordCountCompliance(fullContent, depth);
 
       // 通知前端流式结束
       this.emit('debate:stream:end', {
@@ -1612,10 +2554,10 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
   getRole(roleType) {
     if (!roleType) return undefined;
     
-    const normalizedType = roleType.toLowerCase().trim();
+    const normalizedType = String(roleType || '').toLowerCase().trim();
     
     let role = this.roles.find(r => {
-      const rt = (r.roleType || '').toLowerCase().trim();
+      const rt = (r.roleType || '').toString().toLowerCase().trim();
       return rt === normalizedType;
     });
     
@@ -1629,7 +2571,7 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
       for (const [canonical, aliases] of Object.entries(aliasMap)) {
         if (aliases.includes(normalizedType) || canonical === normalizedType) {
           role = this.roles.find(r => {
-            const rt = (r.roleType || '').toLowerCase().trim();
+            const rt = (r.roleType || '').toString().toLowerCase().trim();
             return aliases.includes(rt) || rt === canonical;
           });
           if (role) {
@@ -1644,7 +2586,8 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
   }
 
   /**
-   * 🔥 新增：根据输出深度获取指令模板
+   * 🔥 V6.0 新增：根据输出深度获取指令模板（多层强化版）
+   * 核心策略：通过提示词工程让AI自觉遵守字数约束，而非硬截断
    * @param {string} depth - 输出深度 ('brief' | 'normal' | 'detailed')
    * @returns {string} 深度指令字符串
    */
@@ -1653,105 +2596,221 @@ ${context.keyIssuesFromReview.length > 0 ? context.keyIssuesFromReview.join('\n'
       brief: {
         id: 'brief',
         name: '简短讨论',
-        instruction: `请用简洁的语言回答，控制在50-150字以内。
-要求：
-- 一句话表达核心观点
-- 可以有一个补充说明
-- 不展开详细论证
-- 直击要害，不废话
+        minWords: 150,
+        maxWords: 500,
+        instruction: `【⚠️ 核心纪律 - 字数强制约束】
 
-⚠️ 【严格防重复约束】
-1. 禁止使用"非常非常"、"特别特别"等叠词副词
-2. 同一词语在50字内不得重复出现2次以上
-3. 禁止"分析和研究"、"计划和规划"等近义冗余表达
-4. 每个观点只说一次，不要反复强调
-5. 使用多样化的句式，避免"首先...其次...最后"的机械结构`,
+📏 目标字数：150-500字（绝对不可超过500字！）
+
+🔴 违规后果说明：
+- 如果你的回复超过500字，将被判定为"不合格输出"
+- 用户需要的是简洁精炼的观点，不是长篇大论
+- 超长=质量差=无法使用
+
+✅ 正确做法：
+① 用1-2句话直接表达核心观点（50-100字）
+② 用2-3个要点支撑理由（每个要点30-60字）
+③ 用1句话总结或补充（20-40字）
+④ 总计控制在150-500字之间
+
+❌ 错误做法：
+- 长篇大论展开论述（超过600字直接判废）
+- 反复解释同一个观点
+- 堆砌大量案例和数据
+- 使用"首先...其次...再次...最后...另外...此外..."的冗长结构
+
+📝 字数自检清单（输出前必须执行）：
+□ 总字数是否在150-500字之间？
+□ 是否删除了所有冗余表述？
+□ 每个观点是否只说了一次？
+□ 是否去掉了"众所周知"、"显而易见"等废话？
+
+💡 技巧：宁可少写不要多写，精炼比全面更重要！`,
       },
       normal: {
         id: 'normal',
         name: '深入讨论',
-        instruction: `请用适中的长度回答，控制在200-500字以内。
-要求：
-- 清晰表达核心观点
-- 给出支撑理由（2-3个要点）
-- 可以有一个简短案例
-- 逻辑清晰，层次分明
+        minWords: 500,
+        maxWords: 1000,
+        instruction: `【⚠️ 核心纪律 - 字数强制约束】
 
-⚠️ 【严格防重复约束 - V5.0增强版】
-🚫 绝对禁止的重复模式：
-1. **字符级**：连续3个相同字符（如"的有有有"）
-2. **词语级**：同一实词（名词/动词/形容词）在100字内最多出现2次
-3. **短语级**：禁止"非常重要"、"十分关键"、"极其核心"等程度副词堆砌
-4. **句式级**：相邻两句不能使用相同的主语开头
-5. **段落级**：每个论点只阐述一次，不要换种说法重复
+📏 目标字数：500-1000字（绝对不可超过1000字！）
 
-✅ 推荐的多样化表达：
-- 用同义词替换："重要"→"关键/核心/主要/根本/至关重要"
-- 变换句式："A是B"→"B体现了A"/"从A角度看..."
-- 合并冗余："分析和研究"→"深入分析"或"系统研究"
-- 删除废话：去掉"众所周知"、"显然"、"不言而喻"
+🔴 违规后果说明：
+- 如果你的回复超过1000字，将被判定为"冗余输出"
+- 这是一场辩论，不是写论文，需要高效表达
+- 对手也在等待发言，占用过多时间是不专业的表现
 
-🎯 质量标准：
-- 信息密度高，无冗余表述
-- 语言自然流畅，不像机器生成
-- 逻辑递进，不原地踏步`,
+✅ 正确做法（推荐结构）：
+① 开门见山：核心观点+论点预览（80-120字）
+② 论据支撑：2-3个核心论点，每个论点（120-180字）
+③ 案例佐证：1个简短案例（80-120字）
+④ 回应/延伸：针对可能的反驳或补充角度（80-120字）
+⑤ 总结收尾：重申核心立场（40-60字）
+⑥ 总计控制在500-1000字之间
+
+❌ 绝对禁止：
+- 单个论点展开超过250字（太啰嗦）
+- 引用超过2个案例（太冗余）
+- 使用5个以上的序号项（结构过于复杂）
+- 大段引用数据或文献（这是辩论不是学术报告）
+
+📊 字数分配参考表：
+| 部分 | 建议字数 | 上限 |
+|------|---------|------|
+| 核心观点 | 80-120 | 150 |
+| 论点1 | 120-180 | 220 |
+| 论点2 | 120-180 | 220 |
+| 案例 | 80-120 | 150 |
+| 回应/补充 | 80-120 | 150 |
+| 总结 | 40-60 | 80 |
+| **总计** | **520-740** | **1000** |
+
+🔄 自检流程（输出前必须执行）：
+Step 1: 统计当前总字数
+Step 2: 如果>1000字，立即删减最不重要的30%
+Step 3: 再次检查，确保≤1000字
+Step 4: 确认每个段落都有信息增量，无重复`,
       },
       detailed: {
         id: 'detailed',
         name: '详细研究',
-        instruction: `请详细深入地回答，控制在800-2000字以内。
-要求：
-- 系统性地分析问题
-- 多个维度的深度论证
-- 引用数据和案例支撑
-- 分析风险和不确定性
-- 给出前瞻性思考
-- 可以使用结构化表达
+        minWords: 1000,
+        maxWords: 2000,
+        instruction: `【⚠️ 核心纪律 - 字数强制约束】
 
-⚠️ 【严格防重复约束 - V5.0增强版】
-📌 长文本特别注意事项：
+📏 目标字数：1000-2000字（绝对不可超过2000字！）
 
-🚫 **三级重复检测机制**：
+🔴 违规后果说明：
+- 如果你的回复超过2000字，将被判定为"失控输出"
+- 即使是"详细研究"模式，也需要克制和精准
+- 冗长≠深刻，简洁的力量往往更强
 
-**Level 1 - 微观（字符/词）**
-- 禁止连续重复：好好、常常、往往等叠词（合法叠词除外）
-- 虚词控制："的"字密度<8%，"了"字密度<5%
-- 副词限制：每200字内"非常/特别/十分"总计≤1次
+✅ 推荐结构（系统性分析框架）：
+┌─────────────────────────────────────┐
+│ 【引言】核心论点与论证路线图（100-150字）│
+├─────────────────────────────────────┤
+│ 【维度1】深度分析（300-400字）         │
+│   - 核心论点                          │
+│   - 数据/证据支撑                     │
+│   - 逻辑推导                         │
+├─────────────────────────────────────┤
+│ 【维度2】对比/反驳视角（250-350字）     │
+│   - 不同角度的考量                    │
+│   - 可能的质疑及回应                  │
+├─────────────────────────────────────┤
+│ 【维度3】实践应用/案例（200-300字）    │
+│   - 具体场景分析                     │
+│   - 可操作性建议                     │
+├─────────────────────────────────────┤
+│ 【结论】总结与前瞻（100-150字）       │
+│   - 核心发现回顾                     │
+│   - 未来展望                         │
+├─────────────────────────────────────┤
+│ **目标总计：1000-2000字**            │
+└─────────────────────────────────────┘
 
-**Level 2 - 中观（句子/段落）**
-- 句子指纹：相邻句子关键词重叠度<60%
-- 论点唯一性：每个核心观点只完整阐述一次
-- 引用规范：同一证据/案例只在最相关位置引用1次
+❌ 危险信号（出现以下情况立即停止并精简）：
+⚠ 单个段落超过400字 → 太冗长，拆分或删减
+⚠ 出现第5个一级标题 → 结构过于复杂
+⚠ 连续3段都是纯理论阐述 → 缺乏实际内容
+⚠ 引用超过3个不同来源的案例 → 信息过载
+⚣ 总字数接近2000 → 立即进入"精简模式"
 
-**Level 3 - 宏观（篇章）**
-- 结构避免：不要每段都用"首先/其次/最后"
-- 主题词分散：核心术语在全文字频均匀分布，不要集中堆在某段
-- 语义推进：每段都要有新信息增量，不要"换汤不换药"
-
-✅ **高质量写作技巧**：
-1. **同义词库**：
-   - 重要：关键、核心、主要、根本、至关重要、举足轻重
-   - 分析：剖析、探究、考察、审视、解读、研讨
-   - 影响：作用、效应、效果、意义、价值、冲击
-   
-2. **句式变换矩阵**：
-   - 主动句↔被动句
-   - 长句↔短句结合
-   - 陈述句↔设问句/反问句
-   - 正说↔反说（"之所以...是因为..." ↔ "如果不...就..."）
-
-3. **信息增量原则**：
-   - 每新的一段都必须提供前文未覆盖的信息
-   - 如果发现要重复前面的内容，改为"如前所述（见第X点）"一笔带过
+📝 "精简模式"操作指南：
+当检测到字数超标时：
+1. 删除所有修饰性形容词（"非常重要的"→"重要的"）
+2. 合并相似论点（如果两个论点说的是同一件事）
+3. 把长句改成短句（"由于...的原因导致了...的结果"→"...导致..."）
+4. 删除可以推断出来的背景信息
+5. 保留最核心的数据，删除次要数据
 
 🎯 最终检验标准：
-读完全文，如果感觉任何一段可以删除而不影响理解，那就是冗余，应该删掉。`,
+读完全文，问自己三个问题：
+Q1: 如果删掉某一段，是否影响理解？→ 如果否，删掉它
+Q2: 是否有哪个观点被重复说了2次以上？→ 合并成1次
+Q3: 这篇文章的核心价值能否用一半的字数表达？→ 如果能，重写`,
       },
     };
 
     const config = depthConfigs[depth] || depthConfigs.normal;
-    console.log(`[DebateEngine] 使用输出深度配置: ${config.name} (含V5.0防重复约束)`);
+    console.log(`[DebateEngine] 🎯 使用输出深度配置: ${config.name} (${config.minWords}-${config.maxWords}字) [V6.0多层强化版]`);
     return config.instruction;
+  }
+
+  /**
+   * 🔥 V6.0 新增：字数合规性检测（温和版：仅记录，不截断）
+   * 核心原则：不破坏内容完整性，但记录违规情况供后续优化
+   * @param {string} content - 待检测的内容
+   * @param {string} depth - 输出深度 ('brief' | 'normal' | 'detailed')
+   */
+  checkWordCountCompliance(content, depth) {
+    if (!content) return;
+    
+    const wordCount = content.length;
+    const depthConfigs = {
+      brief: { min: 150, max: 500, name: '简短讨论' },
+      normal: { min: 500, max: 1000, name: '深入讨论' },
+      detailed: { min: 1000, max: 2000, name: '详细研究' },
+    };
+    
+    const config = depthConfigs[depth] || depthConfigs.normal;
+    const { min, max, name } = config;
+    
+    console.log(`\n${'═'.repeat(50)}`);
+    console.log(`[DebateEngine] 📊 字数合规性检测报告 [${name}模式]`);
+    console.log(`[DebateEngine] 目标范围: ${min}-${max} 字`);
+    console.log(`[DebateEngine] 实际字数: ${wordCount} 字`);
+    
+    if (wordCount < min) {
+      console.warn(`[DebateEngine] ⚠️ 字数不足！实际(${wordCount}) < 最低要求(${min})，差 ${min - wordCount} 字`);
+      console.warn(`[DebateEngine] 建议：内容可能过于简略，可适当补充论据或案例`);
+    } else if (wordCount > max) {
+      const excess = wordCount - max;
+      const excessPercent = ((excess / max) * 100).toFixed(1);
+      console.error(`[DebateEngine] 🔴 字数超标！实际(${wordCount}) > 上限(${max})，超出 ${excess} 字 (${excessPercent}%)`);
+      console.error(`[DebateEngine] ⚠️ 警告：AI模型未严格遵守字数约束，建议优化提示词`);
+      
+      // 记录到违规统计（可用于后续分析）
+      if (!this._wordCountViolations) {
+        this._wordCountViolations = [];
+      }
+      this._wordCountViolations.push({
+        timestamp: new Date().toISOString(),
+        depth: depth,
+        targetMax: max,
+        actual: wordCount,
+        excess: excess,
+        excessPercent: parseFloat(excessPercent),
+      });
+      
+      // 如果严重超标（超过上限的2倍），发出强烈警告
+      if (wordCount > max * 2) {
+        console.error(`[DebateEngine] 💥 严重超标！字数达到上限的 ${Math.round(wordCount/max * 100)}%`);
+        console.error(`[DebateEngine] 可能原因：1) 提示词约束不够强 2) 模型对该话题有大量输出倾向 3) 需要调整max_tokens参数`);
+      }
+    } else {
+      const usagePercent = ((wordCount / max) * 100).toFixed(1);
+      console.log(`[DebateEngine] ✅ 字数合规！使用率: ${usagePercent}% (${wordCount}/${max})`);
+    }
+    
+    console.log(`${'═'.repeat(50)}\n`);
+  }
+
+  /**
+   * 🔥 新增：获取字数违规统计（用于调试和分析）
+   */
+  getWordCountViolationStats() {
+    if (!this._wordCountViolations || this._wordCountViolations.length === 0) {
+      return { totalViolations: 0, message: '无字数违规记录' };
+    }
+    
+    return {
+      totalViolations: this._wordCountViolations.length,
+      violations: this._wordCountViolations,
+      avgExcessPercent: this._wordCountViolations.reduce((sum, v) => sum + v.excessPercent, 0) / this._wordCountViolations.length,
+      maxExcessPercent: Math.max(...this._wordCountViolations.map(v => v.excessPercent)),
+    };
   }
 
   getCurrentPhaseKeyQuestions() {

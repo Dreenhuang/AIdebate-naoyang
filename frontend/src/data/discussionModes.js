@@ -1,40 +1,49 @@
 /**
  * PRD辩论系统 - 讨论模式配置
- * 包含17种讨论模式的完整配置
+ * 包含19种讨论模式的完整配置
+ *
+ * V2.0 更新：输出深度字数规范调整
+ * - 简短讨论：150-500字/角色·轮
+ * - 深入讨论：500-1000字/角色·轮
+ * - 详细研究：1000-2000字/角色·轮
+ *
+ * V3.0 更新：角色类型映射与默认Soul配置
+ * - 修复：所有模式使用soulPresets支持的角色类型
+ * - 新增：每个模式预配最佳默认Soul组合
  */
 
-// 输出深度配置
+// 输出深度配置（V2.0 按用户要求调整）
 export const OUTPUT_DEPTH = {
   brief: {
     id: 'brief',
     name: '简短讨论',
-    charRange: '50-150字',
+    charRange: '150-500字/轮',
     description: '快速结论，适合简单议题',
-    instruction: `请用简洁的语言回答，控制在50-150字以内。
+    instruction: `请用简洁的语言回答，控制在150-500字以内。
 要求：
 - 一句话表达核心观点
-- 可以有一个补充说明
+- 给出1-2个关键支撑理由
 - 不展开详细论证
 - 直击要害，不废话`,
   },
   normal: {
     id: 'normal',
     name: '深入讨论',
-    charRange: '200-500字',
+    charRange: '500-1000字/轮',
     description: '平衡深度与效率，适合大多数场景',
-    instruction: `请用适中的长度回答，控制在200-500字以内。
+    instruction: `请用适中的长度回答，控制在500-1000字以内。
 要求：
 - 清晰表达核心观点
-- 给出支撑理由（2-3个要点）
-- 可以有一个简短案例
+- 给出2-3个有力支撑理由
+- 可以有1个简短案例或数据
 - 逻辑清晰，层次分明`,
   },
   detailed: {
     id: 'detailed',
     name: '详细研究',
-    charRange: '800-2000字',
+    charRange: '1000-2000字/轮',
     description: '全面分析，适合复杂议题',
-    instruction: `请详细深入地回答，控制在800-2000字以内。
+    instruction: `请详细深入地回答，控制在1000-2000字以内。
 要求：
 - 系统性地分析问题
 - 多个维度的深度论证
@@ -42,6 +51,181 @@ export const OUTPUT_DEPTH = {
 - 分析风险和不确定性
 - 给出前瞻性思考
 - 可以使用结构化表达`,
+  },
+};
+
+// ══════════════════════════════════════
+// V3.0 角色类型映射系统
+// 将模式中的逻辑角色类型映射到 soulPresets 支持的物理类型
+// ══════════════════════════════════════
+
+export const ROLE_TYPE_MAP = {
+  // === 主持人相关 ===
+  'host': 'host',
+  'moderator': 'host',
+  'coordinator': 'host',
+
+  // === 提案者/正方相关 ===
+  'proposer': 'proposer',
+  'pro-side': 'proposer',
+  'pros-side': 'proposer',
+  'presenter': 'proposer',
+  'participant-a': 'proposer',
+  'initiator': 'proposer',
+  'ideator': 'proposer',
+  'main-ai': 'proposer',
+
+  // === 审查者/反方相关 ===
+  'reviewer': 'reviewer',
+  'con-side': 'reviewer',
+  'cons-side': 'reviewer',
+  'participant-b': 'reviewer',
+  'answerer': 'reviewer',
+  'chainer': 'reviewer',
+  'sub-ai': 'reviewer',
+
+  // === 补充者相关 ===
+  'supplementer': 'supplementer',
+
+  // === 总结者/中立相关 ===
+  'summarizer': 'summarizer',
+  'neutral': 'summarizer',
+  'judge': 'summarizer',
+  'voter': 'summarizer',
+
+  // === 辩论者相关 ===
+  'debater': 'debater',
+  'member': 'debater',
+
+  // === 头脑风暴相关 ===
+  'brainstormer': 'brainstormer',
+
+  // === 特殊类型（需要映射） ===
+  'asker': 'proposer',
+  'questioner': 'reviewer',
+  'dimension-1': 'debater',
+  'dimension-2': 'debater',
+  'dimension-3': 'debater',
+  'critic': 'debater',
+  'critic-logic': 'debater',
+  'critic-detail': 'reviewer',
+  'critic-risk': 'debater',
+  'expert-tech': 'brainstormer',
+  'expert-business': 'proposer',
+  'expert-risk': 'reviewer',
+  'ai': 'brainstormer',
+};
+
+/**
+ * 获取映射后的物理角色类型
+ */
+export const getMappedRoleType = (logicalType) => {
+  return ROLE_TYPE_MAP[logicalType] || 'debater';
+};
+
+// ══════════════════════════════════════
+// V3.0 默认Soul预设配置
+// 为每种讨论模式推荐最佳的角色Soul组合
+// ══════════════════════════════════════
+
+export const MODE_DEFAULT_SOULS = {
+  // ========== 一对一双向商量类 ==========
+  'free-dialogue': {
+    'proposer': 'proposer-logical',
+    'reviewer': 'reviewer-detailed',
+  },
+  'qa-chase': {
+    'proposer': 'proposer-innovative',
+    'reviewer': 'reviewer-user',
+  },
+  'complement': {
+    'proposer': 'proposer-practical',
+    'supplementer': null,
+  },
+
+  // ========== 多人圆桌合议类 ==========
+  'roundtable-free': {
+    'host': 'host-neutral',
+    'debater': 'debater-collaborative',
+  },
+  'rotating-speaker': {
+    'host': 'host-efficiency',
+    'debater': 'debater-analytical',
+  },
+  'split-thesis': {
+    'host': 'host-strict',
+    'debater': 'debater-specialized',
+  },
+  'specialized': {
+    'host': 'host-encouraging',
+    'proposer': 'proposer-theoretical',
+    'supplementer': null,
+    'debater': 'debater-devils-advocate',
+    'summarizer': 'summarizer-synthesizer',
+  },
+  'problem-breakdown': {
+    'host': 'host-creative',
+    'debater': 'debater-systematic',
+  },
+
+  // ========== 正式对抗辩论类 ==========
+  'standard-debate': {
+    'host': 'host-neutral',
+    'proposer': 'proposer-theoretical',
+    'reviewer': 'reviewer-detailed',
+    'summarizer': 'summarizer-judge',
+  },
+  'triangular': {
+    'proposer': 'proposer-innovative',
+    'reviewer': 'reviewer-risk-aware',
+    'summarizer': 'summarizer-mediator',
+  },
+  'rebuttal-review': {
+    'proposer': 'proposer-experienced',
+    'reviewer': 'reviewer-detailed',
+    'summarizer': 'summarizer-synthesizer',
+  },
+  'pros-cons': {
+    'host': 'host-neutral',
+    'proposer': 'proposer-user-centric',
+    'reviewer': 'reviewer-cost-benefit',
+    'summarizer': 'summarizer-balancer',
+  },
+
+  // ========== 决策辅助类 ==========
+  'qa-defense': {
+    'host': 'host-strict',
+    'proposer': 'proposer-logical',
+    'reviewer': 'reviewer-technical',
+  },
+  'proposal-vote': {
+    'host': 'host-efficiency',
+    'proposer': 'proposer-practical',
+    'summarizer': 'summarizer-tally',
+  },
+
+  // ========== 头脑风暴共创类 ==========
+  'brainstorm': {
+    'host': 'host-creative',
+    'brainstormer': 'brainstormer-divergent',
+  },
+  'idea-chain': {
+    'proposer': 'brainstormer-divergent',
+    'reviewer': 'brainstormer-convergent',
+  },
+
+  // ========== 多AI专属协同类 ==========
+  'ai-lead-supplement': {
+    'proposer': 'proposer-theoretical',
+    'reviewer': 'reviewer-detailed',
+  },
+  'ai-parallel': {
+    'brainstormer': 'brainstormer-multidimensional',
+  },
+  'ai-role-simulation': {
+    'brainstormer': 'brainstormer-perspective-taking',
+    'proposer': 'proposer-user-centric',
+    'reviewer': 'reviewer-risk-aware',
   },
 };
 

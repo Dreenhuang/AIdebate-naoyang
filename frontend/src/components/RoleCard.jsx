@@ -105,7 +105,8 @@ export default function RoleCard({ role, index }) {
 
             {showSoulSelector && (
               <div className="bg-gray-1 rounded-md border border-gray-3 max-h-48 overflow-y-auto">
-                {soulPresets.map((preset) => (
+                {(Array.isArray(soulPresets) ? soulPresets : []).length > 0 ? (
+                  (Array.isArray(soulPresets) ? soulPresets : []).map((preset) => (
                   <button
                     key={preset.id}
                     onClick={() => handleSelectPreset(preset)}
@@ -114,7 +115,7 @@ export default function RoleCard({ role, index }) {
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-body font-medium">{preset.name}</span>
+                      <span className="text-body font-medium">{preset.name || '未命名预设'}</span>
                       <span className={`text-extra px-1.5 py-0.5 rounded-small ${
                         preset.difficulty === 'expert' ? 'bg-error-1 text-error-5' :
                         preset.difficulty === 'advanced' ? 'bg-warning-1 text-warning-5' :
@@ -124,16 +125,23 @@ export default function RoleCard({ role, index }) {
                          preset.difficulty === 'advanced' ? '高级' : '中级'}
                       </span>
                     </div>
-                    <p className="text-small text-gray-6 mt-0.5">{preset.description}</p>
-                    <div className="flex gap-1 mt-1">
-                      {preset.tags.map((tag, i) => (
-                        <span key={i} className="text-extra bg-gray-2 text-gray-7 px-1.5 py-0.5 rounded-small">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+                    <p className="text-small text-gray-6 mt-0.5">{preset.description || '暂无描述'}</p>
+                    {Array.isArray(preset.tags) && preset.tags.length > 0 && (
+                      <div className="flex gap-1 mt-1">
+                        {preset.tags.map((tag, i) => (
+                          <span key={i} className="text-extra bg-gray-2 text-gray-7 px-1.5 py-0.5 rounded-small">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </button>
-                ))}
+                ))
+              ) : (
+                <div className="p-3 text-small text-gray-6 text-center">
+                  暂无该类型的预设
+                </div>
+              )}
               </div>
             )}
           </div>

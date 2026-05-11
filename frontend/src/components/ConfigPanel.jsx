@@ -4,8 +4,8 @@ import { useDebateStore } from '../stores/debateStore';
 import { useModeStore } from '../stores/modeStore';
 import RoleCard from './RoleCard';
 import DocumentUpload from './DocumentUpload';
-import { DISCUSSION_MODES, OUTPUT_DEPTH, getModeCategories } from '../data/discussionModes';
-import { getSoulsByRoleType, getRandomSoul } from '../data/soulPresets';
+import { DISCUSSION_MODES, OUTPUT_DEPTH, getModeCategories, getMappedRoleType, MODE_DEFAULT_SOULS } from '../data/discussionModes';
+import { getSoulsByRoleType, getRandomSoul, getSoulById } from '../data/soulPresets';
 
 const CATEGORY_ICONS = {
   '一对一双向商量': '💬',
@@ -43,25 +43,41 @@ export default function ConfigPanel({ onStart, onStop, onReset }) {
 
     setMode(modeId);
 
-    // 自动调整角色配置
+    // V3.0 使用角色映射系统和默认Soul配置
     const defaultRoles = mode.defaultRoles || [];
+    const modeDefaultSouls = MODE_DEFAULT_SOULS[modeId] || {};
     const newRoles = [];
 
     defaultRoles.forEach((roleConfig, index) => {
-      const randomSoul = getRandomSoul(roleConfig.roleType);
+      // 使用映射系统将逻辑类型转换为物理类型
+      const mappedRoleType = getMappedRoleType(roleConfig.roleType);
+
+      // 优先使用模式推荐的默认Soul预设
+      const recommendedPresetId = modeDefaultSouls[mappedRoleType];
+      let soulData = null;
+
+      if (recommendedPresetId) {
+        // 使用推荐预设
+        soulData = getSoulById(mappedRoleType, recommendedPresetId);
+      }
+
+      // 如果没有推荐预设或预设不存在，则随机选择
+      if (!soulData) {
+        soulData = getRandomSoul(mappedRoleType);
+      }
+
       newRoles.push({
         id: Date.now() + index,
         name: roleConfig.label,
-        roleType: roleConfig.roleType,
-        soul: randomSoul?.soul || '',
-        soulPresetId: randomSoul?.id || null,
+        roleType: mappedRoleType,
+        originalRoleType: roleConfig.roleType,
+        soul: soulData?.soul || '',
+        soulPresetId: soulData?.id || null,
         model: 'deepseek-v4-flash',
       });
     });
 
-    // 更新配置
     updateConfig({ roles: newRoles });
-
     setShowModeSelector(false);
   };
 

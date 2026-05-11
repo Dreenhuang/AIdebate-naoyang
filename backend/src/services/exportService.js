@@ -1,5 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
+const docx = require('docx');
 
 class ExportService {
   constructor() {
@@ -66,6 +67,414 @@ class ExportService {
     }
   }
 
+  async exportToDocx(debateData) {
+    try {
+      const doc = this.generateDocxDocument(debateData);
+      const filename = `辩论报告-${debateData.topic || '未命名'}-${Date.now()}.docx`;
+      const buffer = await docx.Packer.toBuffer(doc);
+      
+      return {
+        success: true,
+        filename,
+        buffer,
+        format: 'docx',
+      };
+    } catch (error) {
+      console.error('[Export] DOCX export failed:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * V13.0 按规范生成Word文档
+   * 规范要求：
+   * - 正文字体：四号字体（14pt = 28 half-points）
+   * - 行距：1.2倍行距（276 DXA = 20磅 × 138/10）
+   * - 首行缩进：2字符（480 DXA）
+   * - 页边距：上/下/左/右 各 2cm（1134 DXA）
+   * - 页眉：文档标题，居中对齐
+   * - 页脚：第X页/共Y页
+   */
+  generateDocxDocument(data) {
+    const {
+      Document, Paragraph, TextRun, AlignmentType, HeadingLevel,
+      Header, Footer, PageNumber, BorderStyle, Table, TableRow, TableCell,
+      WidthType, ShadingType, convertMillimetersToTwip, UnderlineType,
+      PageBreak,
+    } = docx;
+
+    const topic = data.topic || '未指定';
+    const now = new Date().toLocaleString('zh-CN');
+    const totalPages = Math.ceil((data.messages?.length || 0) / 20) || 1;
+
+    // ══════════════════════════════════════
+    // 规范常量定义
+    // ══════════════════════════════════════
+    const FONT_FAMILY = 'Microsoft YaHei';
+    const FONT_SIZE_NORMAL = 28; // 14pt (四号)
+    const FONT_SIZE_TITLE = 36; // 18pt (小二)
+    const FONT_SIZE_HEADING = 32; // 16pt (三号)
+    const LINE_SPACING = 276; // 1.2倍行距 (20磅)
+    const INDENT_FIRST_LINE = 480; // 首行缩进2字符
+    const MARGIN = convertMillimetersToTwip(20); // 2cm
+
+    // 辅助函数：创建规范化的文本运行
+    const bold = (text, size = FONT_SIZE_NORMAL) => new TextRun({
+      text, bold: true, font: FONT_FAMILY, size,
+    });
+    const normal = (text, size = FONT_SIZE_NORMAL) => new TextRun({
+      text, font: FONT_FAMILY, size,
+    });
+    const emphasis = (text, size = FONT_SIZE_NORMAL) => new TextRun({
+      text, bold: true, underline: { type: UnderlineType.SINGLE }, font: FONT_FAMILY, size,
+    });
+
+    // 创建标准段落（带首行缩进和行距）
+    const createPara = (children, options = {}) => new Paragraph({
+      children: Array.isArray(children) ? children : [children],
+      spacing: { line: LINE_SPACING, after: 120 },
+      indent: options.noIndent ? {} : { firstLine: INDENT_FIRST_LINE },
+      ...options,
+    });
+
+    // 创建空行
+    const emptyLine = () => new Paragraph({ text: '', spacing: { line: LINE_SPACING } });
+
+    const children = [];
+
+    // ══════════════════════════════════════
+    // 1. 报告封面标题（居中、加粗、大字号）
+    // ══════════════════════════════════════
+    children.push(
+      emptyLine(),
+      emptyLine(),
+      new Paragraph({
+        text: '📋 脑痒辩论报告',
+        alignment: AlignmentType.CENTER,
+        heading: HeadingLevel.TITLE,
+        spacing: { after: 200, line: LINE_SPACING },
+        run: {
+          bold: true, size: 44, font: FONT_FAMILY, color: '1a365d',
+        },
+      }),
+      new Paragraph({
+        text: `「${topic}」`,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400, line: LINE_SPACING },
+        run: {
+          size: FONT_SIZE_HEADING, font: FONT_FAMILY, color: '4a5568',
+          italics: true,
+        },
+      }),
+      emptyLine(),
+    );
+
+    // ══════════════════════════════════════
+    // 2. 元信息表格（规范格式）
+    // ══════════════════════════════════════
+    children.push(
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            tableHeader: false,
+            children: [
+              new TableCell({
+                children: [createPara([bold('生成时间'), normal(`：${now}`)], { noIndent: true })],
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                margins: { top: 100, bottom: 100, left: 150, right: 150 },
+              }),
+              new TableCell({
+                children: [createPara([bold('文档版本'), normal('：V13.0')], { noIndent: true })],
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                margins: { top: 100, bottom: 100, left: 150, right: 150 },
+              }),
+            ],
+          }),
+          new TableRow({
+            children: [
+              new TableCell({
+                children: [createPara([bold('辩论话题'), normal(`：${topic}`)], { noIndent: true })],
+                columnSpan: 2,
+                margins: { top: 100, bottom: 100, left: 150, right: 150 },
+              }),
+            ],
+          }),
+          new TableRow({
+            children: [
+              new TableCell({
+                children: [createPara([bold('辩论状态'), normal(`：${this.getStatusText(data.status)}`)], { noIndent: true })],
+                columnSpan: 2,
+                margins: { top: 100, bottom: 100, left: 150, right: 150 },
+              }),
+            ],
+          }),
+          new TableRow({
+            children: [
+              new TableCell({
+                children: [createPara([
+                  bold('消息总数'),
+                  normal(`：${data.messages?.length || 0} 条`),
+                  normal('  |  '),
+                  bold('参与角色'),
+                  normal(`：${data.roles?.map(r => r.name).join('、') || '-'} `),
+                ], { noIndent: true })],
+                columnSpan: 2,
+                margins: { top: 100, bottom: 100, left: 150, right: 150 },
+              }),
+            ],
+          }),
+        ],
+      })
+    );
+
+    children.push(emptyLine());
+
+    // ══════════════════════════════════════
+    // 3. 辩论阶段概览
+    // ══════════════════════════════════════
+    if (data.phases && data.phases.length > 0) {
+      children.push(
+        new Paragraph({
+          children: [emphasis('一、辩论阶段概览')],
+          heading: HeadingLevel.HEADING_1,
+          spacing: { before: 300, after: 150, line: LINE_SPACING },
+          border: { bottom: { color: '3b82f6', style: BorderStyle.SINGLE, size: 6 } },
+        })
+      );
+
+      data.phases.forEach((phase, index) => {
+        const isCompleted = index < data.currentPhase;
+        const isCurrent = index === data.currentPhase;
+        let statusText = '⏳ 未开始';
+        if (isCompleted) statusText = '✅ 已完成';
+        else if (isCurrent) statusText = '🔄 进行中';
+
+        children.push(
+          createPara([
+            bold(`${index + 1}. ${phase.name || `阶段 ${index + 1}`}`),
+            normal(`  ${phase.description || ''} (${statusText})`),
+          ])
+        );
+      });
+
+      children.push(emptyLine());
+    }
+
+    // ══════════════════════════════════════
+    // 4. 辩论记录（按阶段分组，增强格式）
+    // ══════════════════════════════════════
+    if (data.messages && data.messages.length > 0) {
+      children.push(
+        new Paragraph({
+          children: [emphasis('二、详细辩论记录')],
+          heading: HeadingLevel.HEADING_1,
+          spacing: { before: 300, after: 150, line: LINE_SPACING },
+          border: { bottom: { color: '3b82f6', style: BorderStyle.SINGLE, size: 6 } },
+        })
+      );
+
+      let currentPhase = -1;
+      let currentRound = -1;
+
+      data.messages.forEach((msg) => {
+        // 阶段分隔
+        if (msg.phase !== undefined && msg.phase !== currentPhase) {
+          currentPhase = msg.phase;
+          children.push(
+            new Paragraph({
+              text: `▎ ${data.phases[currentPhase]?.name || `阶段 ${currentPhase + 1}`}`,
+              heading: HeadingLevel.HEADING_2,
+              spacing: { before: 250, after: 120, line: LINE_SPACING },
+              run: { bold: true, size: FONT_SIZE_HEADING, font: FONT_FAMILY, color: '2563eb' },
+            })
+          );
+        }
+
+        // 轮次分隔
+        if (msg.round !== undefined && msg.round !== currentRound) {
+          currentRound = msg.round;
+          children.push(
+            new Paragraph({
+              text: `◆ 第 ${currentRound} 轮`,
+              spacing: { before: 180, after: 80, line: LINE_SPACING },
+              run: { bold: true, size: FONT_SIZE_NORMAL, font: FONT_FAMILY, color: '64748b' },
+            })
+          );
+        }
+
+        // 发言者信息
+        const timeStr = msg.timestamp
+          ? new Date(msg.timestamp).toLocaleTimeString('zh-CN')
+          : '-';
+        
+        const roleEmoji = this.getRoleEmoji(msg.role);
+
+        children.push(
+          new Paragraph({
+            children: [
+              bold(`${roleEmoji} ${msg.roleName || msg.role}`),
+              normal(`  （${timeStr}）`),
+            ],
+            spacing: { before: 80, after: 40, line: LINE_SPACING },
+            run: { bold: true, size: FONT_SIZE_NORMAL, font: FONT_FAMILY },
+          })
+        );
+
+        // 发言内容（带首行缩进）
+        children.push(
+          createPara(normal(msg.content || '（无内容）'))
+        );
+
+        // 字数统计
+        if (msg.content) {
+          children.push(
+            new Paragraph({
+              children: [
+                normal(`【字数统计】${msg.content.length} 字`, { size: 18, color: '9ca3af' }),
+              ],
+              spacing: { before: 0, after: 60, line: LINE_SPACING },
+              alignment: AlignmentType.RIGHT,
+            })
+          );
+        }
+      });
+
+      children.push(emptyLine());
+    }
+
+    // ══════════════════════════════════════
+    // 5. 阶段共识总结
+    // ══════════════════════════════════════
+    if (data.consensus && data.consensus.length > 0) {
+      children.push(
+        new Paragraph({
+          children: [emphasis('三、阶段共识总结')],
+          heading: HeadingLevel.HEADING_1,
+          spacing: { before: 300, after: 150, line: LINE_SPACING },
+          border: { bottom: { color: '059669', style: BorderStyle.SINGLE, size: 6 } },
+        })
+      );
+
+      data.consensus.forEach((consensus, index) => {
+        children.push(
+          new Paragraph({
+            text: `${index + 1}. ${consensus.phaseName || `阶段 ${index + 1} 共识`}`,
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 180, after: 80, line: LINE_SPACING },
+            run: { bold: true, size: FONT_SIZE_HEADING, font: FONT_FAMILY, color: '059669' },
+          }),
+          createPara(consensus.summary || '(无摘要)')
+        );
+
+        if (consensus.commitments && consensus.commitments.length > 0) {
+          children.push(
+            new Paragraph({
+              children: [bold('核心承诺：', { size: FONT_SIZE_NORMAL })],
+              spacing: { before: 60, after: 40, line: LINE_SPACING },
+            })
+          );
+          consensus.commitments.forEach((commitment) => {
+            children.push(
+              createPara([normal('✓ '), normal(commitment.text || commitment.content || commitment)])
+            );
+          });
+        }
+      });
+
+      children.push(emptyLine());
+    }
+
+    // ══════════════════════════════════════
+    // 6. 回溯校验结果（如有）
+    // ══════════════════════════════════════
+    if (data.backtrackResults && data.backtrackResults.length > 0) {
+      children.push(new PageBreak());
+      
+      children.push(
+        new Paragraph({
+          children: [emphasis('四、回溯校验结果')],
+          heading: HeadingLevel.HEADING_1,
+          spacing: { before: 300, after: 150, line: LINE_SPACING },
+          border: { bottom: { color: 'dc2626', style: BorderStyle.SINGLE, size: 6 } },
+        })
+      );
+
+      const latestResult = data.backtrackResults[data.backtrackResults.length - 1];
+      let statusText = '未知';
+      if (latestResult.status === 'SUPPORTED') statusText = '✅ 通过';
+      else if (latestResult.status === 'TENSION') statusText = '⚠️ 存在张力';
+      else if (latestResult.status === 'CONTRADICTION') statusText = '❌ 发现矛盾';
+
+      children.push(
+        createPara([bold('校验状态：'), normal(statusText)]),
+        createPara([bold('整体评分：'), normal(`${latestResult.overallScore || '-'}/100`)]),
+        createPara([bold('校验摘要：'), normal(latestResult.summary || '-')])
+      );
+
+      if (latestResult.violations && latestResult.violations.length > 0) {
+        children.push(
+          new Paragraph({
+            children: [bold('发现的问题：', { size: FONT_SIZE_NORMAL })],
+            spacing: { before: 100, after: 60, line: LINE_SPACING },
+          })
+        );
+        latestResult.violations.forEach((v) => {
+          children.push(createPara([normal(`• [${v.severity}] ${v.description}`)]));
+        });
+      }
+    }
+
+    // ══════════════════════════════════════
+    // 创建文档（应用规范配置）
+    // ══════════════════════════════════════
+    return new Document({
+      sections: [{
+        properties: {
+          page: {
+            margin: {
+              top: MARGIN,
+              right: MARGIN,
+              bottom: MARGIN,
+              left: MARGIN,
+            },
+            pageNumbers: {
+              start: 1,
+            },
+          },
+        },
+        headers: {
+          default: new Header({
+            children: [
+              new Paragraph({
+                children: [`脑痒辩论报告 - ${topic}`],
+                alignment: AlignmentType.CENTER,
+                run: { size: 18, font: FONT_FAMILY, color: '6b7280' },
+              }),
+            ],
+          }),
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: '第 ', size: 18, font: FONT_FAMILY }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 18, font: FONT_FAMILY }),
+                  new TextRun({ text: ` / 共 ${totalPages} 页`, size: 18, font: FONT_FAMILY }),
+                ],
+              }),
+            ],
+          }),
+        },
+        children,
+      }],
+    });
+  }
   generateMarkdown(data) {
     const lines = [];
     
@@ -340,7 +749,7 @@ class ExportService {
       const fileList = [];
       
       for (const file of files) {
-        if (file.endsWith('.md') || file.endsWith('.html')) {
+        if (file.endsWith('.md') || file.endsWith('.html') || file.endsWith('.docx')) {
           const filepath = path.join(this.exportDir, file);
           const stat = await fs.stat(filepath);
           fileList.push({
@@ -348,7 +757,7 @@ class ExportService {
             path: filepath,
             size: stat.size,
             created: stat.birthtime,
-            format: file.endsWith('.md') ? 'markdown' : 'html',
+            format: file.endsWith('.md') ? 'markdown' : file.endsWith('.html') ? 'html' : 'docx',
           });
         }
       }

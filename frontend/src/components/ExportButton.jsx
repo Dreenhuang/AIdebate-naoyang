@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileDown, FileText, Printer, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { FileDown, FileText, FileSpreadsheet, Printer, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { useDebateStore } from '../stores/debateStore';
 
 export default function ExportButton() {
@@ -32,12 +32,66 @@ export default function ExportButton() {
   });
 
   const handleExport = async (format) => {
+    console.log('[Export] 开始导出，格式:', format);
+    console.log('[Export] 辩论数据:', {
+      topic: topic || config?.topic,
+      messagesCount: messages?.length || 0,
+      consensusCount: consensus?.length || 0,
+    });
+    
     setIsExporting(true);
     setExportResult(null);
     setShowMenu(false);
 
     try {
       const debateData = getDebateData();
+      
+      // 检查数据完整性
+      if (!debateData.messages || debateData.messages.length === 0) {
+        throw new Error('当前没有辩论内容可导出。请先开始一场辩论！');
+      }
+      
+      // docx 格式：后端直接返回二进制文件，不走 JSON 流程
+      if (format === 'docx') {
+        console.log('[Export] 正在导出 DOCX...');
+        const response = await fetch(`${API_URL}/exports/docx`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(debateData),
+        });
+
+        console.log('[Export] DOCX 响应状态:', response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('[Export] DOCX 导出失败:', errorText);
+          throw new Error(errorText || '导出 Word 文档失败');
+        }
+
+        const blob = await response.blob();
+        console.log('[Export] DOCX blob 大小:', blob.size, 'bytes');
+        const filename = `辩论报告-${topic || config?.topic || '未命名'}-${Date.now()}.docx`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        setExportResult({
+          success: true,
+          format,
+          filename,
+          note: 'Word 文档已下载到本地',
+        });
+        console.log('[Export] DOCX 导出成功!');
+        setIsExporting(false);
+        return;
+      }
+
+      // markdown / pdf 格式：后端返回 JSON
       const endpoint = format === 'markdown' ? '/markdown' : '/pdf';
       
       const response = await fetch(`${API_URL}/exports${endpoint}`, {
@@ -96,7 +150,7 @@ export default function ExportButton() {
     <div className="relative">
       <button
         onClick={() => {
-          // 🔥 改进：检查是否有内容可导出
+          // 改进：检查是否有内容可导出
           if (messages.length === 0) {
             setExportResult({
               success: false,
@@ -131,6 +185,14 @@ export default function ExportButton() {
           >
             <FileText className="w-4 h-4 text-text-secondary" />
             <span>Markdown (.md)</span>
+          </button>
+          
+          <button
+            onClick={() => handleExport('docx')}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-bg-hover transition-colors"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-text-secondary" />
+            <span>Word 文档 (.docx)</span>
           </button>
           
           <button
@@ -177,6 +239,10 @@ export default function ExportButton() {
                   >
                     下载 Markdown 文件
                   </button>
+                )}
+                
+                {exportResult.format === 'docx' && exportResult.note && (
+                  <p className="text-text-muted mt-1 italic">{exportResult.note}</p>
                 )}
                 
                 {exportResult.format === 'pdf' && exportResult.note && (

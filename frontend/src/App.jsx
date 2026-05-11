@@ -19,6 +19,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { useDebateStore } from './stores/debateStore';
 import { useModeStore } from './stores/modeStore';
 import OfflineIndicator from './components/OfflineIndicator'; // 🔥 V2.2 新增
+import DownloadCompleteDialog from './components/DownloadCompleteDialog'; // 🔥 新增：讨论完成下载弹窗
 import { PanelLeft, PanelRight, PanelBottom, Minimize2, Maximize2, Layout, Eye, EyeOff } from 'lucide-react';
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
   const { theme, setTheme } = useTheme();
   const { playSoftDing, playCompletion } = useSound();
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showDownloadDialog, setShowDownloadDialog] = useState(false); // 🔥 新增：下载弹窗
   const [prevStatus, setPrevStatus] = useState('idle');
 
   // 三面板状态管理 - 默认可见
@@ -59,6 +61,8 @@ function App() {
       outputDepth, // 输出深度控制
       modeId: currentMode?.id, // 当前模式ID
       displayStyle: currentMode?.displayStyle, // 显示样式
+      // 🔥 V8.0 新增：传递完整模式配置（含flow流程，支持主持人调度）
+      modeConfig: currentMode || null,  // 完整的模式对象（含flow数组）
     };
 
     // 发送开始消息到后端
@@ -108,8 +112,26 @@ function App() {
 
     if (prevStatus === 'running' && debateStatus === 'completed') {
       setShowCelebration(true);
+      setShowDownloadDialog(true); // 🔥 新增：显示下载弹窗
       if (soundEnabled) playCompletion();
       setIsDebating(false);
+
+      // 🔥 新增：浏览器通知提醒
+      if (Notification.permission === 'granted') {
+        new Notification('🎉 讨论已完成！', {
+          body: '辩论已顺利完成，点击下载完整报告。',
+          icon: '/logo-512.png',
+        });
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            new Notification('🎉 讨论已完成！', {
+              body: '辩论已顺利完成，点击下载完整报告。',
+              icon: '/logo-512.png',
+            });
+          }
+        });
+      }
 
       // 辩论完成后自动恢复所有面板
       setTimeout(() => {
@@ -175,6 +197,12 @@ function App() {
   return (
     <div className="h-screen flex flex-col bg-bg-primary transition-colors duration-300">
       <Celebration show={showCelebration} onComplete={() => setShowCelebration(false)} />
+      
+      {/* 🔥 新增：讨论完成下载弹窗 */}
+      <DownloadCompleteDialog 
+        show={showDownloadDialog} 
+        onClose={() => setShowDownloadDialog(false)} 
+      />
 
       {/* 🔥 V2.2 新增：离线状态指示器 */}
       <OfflineIndicator />
